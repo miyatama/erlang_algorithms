@@ -60,7 +60,7 @@ insertion(Value, Front, Rear, F) ->
 
 ## selection sort
 
-[source code](./erlang_code/selection_sort.erl)
+[source code](./erlang_code/sort/selection_sort.erl)
 
 <details><summary>sort logic</summary>
 
@@ -137,6 +137,60 @@ sort(L, F, Move) ->
       {[A|Rest], Move2}
   end.
 
+```
+
+</details>
+
+## heap sort
+
+[source code](./erlang_code/sort/heap_sort.erl)
+
+<details><summary>sort logic</summary>
+
+```erlang
+sort(L) when length(L) =< 0 ->
+  [];
+sort(L) ->
+  F = fun(A, B) -> compare(A, B) end,
+  L1 = build_heap(L, F),
+  N = length(L1),
+  sort(L1, F, N).
+sort(L, _, I) when I =< 1 ->
+  L;
+sort(L, F, I) ->
+  L1 = swap(L, 1, I),
+  L2 = heap_sort(L1, F, 1, I),
+  sort(L2, F, I - 1).
+
+build_heap(L, F) ->
+  N = length(L),
+  I = trunc(N / 2),
+  build_heap(L, F, I, N + 1).
+build_heap(L, _, I, _) when I =< 0 -> L;
+build_heap(L, F, I, N) ->
+  L1 = heap_sort(L, F, I, N),
+  build_heap(L1, F, I - 1, N).
+
+-spec heap_sort(
+  list(T),
+  fun((T, T) -> greater_than | lower_than | equal_to),
+  I, 
+  I) -> list(T).
+heap_sort(L, F, I, N) ->
+  {LeftNodeIndex, RightNodeIndex} = get_child_index(I, N),
+  RootNode = list_nth(I, L),
+  LeftNode = list_nth(LeftNodeIndex, L),
+  RightNode = list_nth(RightNodeIndex, L),
+  case max_nodes(F, RootNode, LeftNode, RightNode) of
+    right ->
+      L1 = swap(L, I, RightNodeIndex),
+      heap_sort(L1, F, RightNodeIndex, N);
+    left ->
+      L1 = swap(L, I, LeftNodeIndex),
+      heap_sort(L1, F, LeftNodeIndex, N);
+    _ ->
+      L
+  end.
 ```
 
 </details>

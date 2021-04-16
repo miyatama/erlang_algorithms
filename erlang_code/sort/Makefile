@@ -12,6 +12,7 @@ MODS = sort_funcs \
 	bubble_sort \
 	insertion_sort \
 	selection_sort \
+	heap_sort
 
 all: compile
 

@@ -22,7 +22,7 @@
 
 test() ->
   sort_test(fun(L) -> sort(L) end).
-  
+
 start() ->
   ?DEBUG("start/0"),
   start(10).
