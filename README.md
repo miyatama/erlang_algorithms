@@ -194,3 +194,35 @@ heap_sort(L, F, I, N) ->
 ```
 
 </details>
+
+## quick sort
+
+[source code](./erlang_code/sort/quick_sort.erl)
+
+<details><summary>sort logic</summary>
+
+```erlang
+-spec sort(list(T)) -> list(T).
+sort(L) ->
+  quick_sort(L).
+
+-spec quick_sort(list(T)) -> list(T).
+quick_sort([]) -> [];
+quick_sort(L) when length(L) =:= 1 -> L;
+quick_sort(L) when length(L) < 100 -> heap_sort:sort(L);
+quick_sort(L) ->
+  quick_sort(L, get_pivot_index(L)).
+quick_sort(L, PivotIndex) when length(L) < PivotIndex ->
+  heap_sort:sort(L);
+quick_sort(L, PivotIndex) ->
+  {L1, L2} = partition(L, PivotIndex),
+  case L1 of
+    L -> quick_sort(L, PivotIndex + 1);
+    _ ->
+      lists:append(
+        quick_sort(L1),
+        quick_sort(L2))
+  end.
+```
+
+</details>

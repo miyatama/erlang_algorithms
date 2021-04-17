@@ -12,12 +12,14 @@
   get_sort_list/1,
   show_list/1,
   compare/2,
-  sort_test/1]).
+  sort_test/2]).
 
 -include("sort_record.hrl").
 
 test() ->
-  sort_test(fun(L) -> sort(L) end).
+  sort_test(
+    bubble_sort, 
+    fun(L) -> sort(L) end).
 
 start() ->
   start(10).

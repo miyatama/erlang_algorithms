@@ -2,70 +2,46 @@
 
 -export([start/0,
          start/1,
-         test/0]).
+         test/0,
+         sort/1]).
 
 -import(sort_funcs, [
   get_sort_list/1,
   show_list/1,
   compare/2,
-  sort_test/1]).
+  sort_test/2,
+  swap/3,
+  output_debug/2,
+  output_debug/3,
+  output_info/2,
+  output_info/3]).
 
-% 1: DEBUG
-% 2: INFO
-% 3: WARN
-% 4: ERROR
-% 5: FATAL
--define(LOG_LEVEL, 2).
--define(DEBUG(S),
-  case ?LOG_LEVEL =< 1 of
-    true -> 
-      io:fwrite("[DEBUG] heap_sort: " ++ S ++ "~n");
-    false ->
-      io:fwrite("")
-  end).
--define(DEBUG(S, Args),
-  case ?LOG_LEVEL =< 1 of
-    true -> 
-      io:fwrite("[DEBUG] heap_sort: " ++ S ++ "~n", Args);
-    false ->
-      io:fwrite("")
-  end).
--define(INFO(S),
-  case ?LOG_LEVEL =< 2 of
-    true -> 
-      io:fwrite("[INFO] heap_sort: " ++ S ++ "~n");
-    false ->
-      io:fwrite("")
-  end).
--define(INFO(S, Args),
-  case ?LOG_LEVEL =< 2 of
-    true -> 
-      io:fwrite("[INFO] heap_sort: " ++ S ++ "~n", Args);
-    false ->
-      io:fwrite("")
-  end).
+-define(OUTPUT_DEBUG(S, Args), output_debug("heap_sort", S, Args)).
+-define(OUTPUT_DEBUG(S), output_debug("heap_sort", S)).
+-define(OUTPUT_INFO(S, Args), output_info("heap_sort", S, Args)).
+-define(OUTPUT_INFO(S), output_info("heap_sort", S)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % public function
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 test() ->
   swap_test(),
-  sort_test(fun(L) -> sort(L) end).
+  sort_test(
+    heap_sort,
+    fun(L) -> sort(L) end).
 
 start() ->
-  ?DEBUG("start/0"),
+  ?OUTPUT_DEBUG("start/0"),
   start(10).
 start(N) ->
-  ?DEBUG("start/1"),
+  ?OUTPUT_DEBUG("start/1"),
   L = get_sort_list(N),
   io:fwrite("list size: ~w~n", [length(L)]),
   show_list(L),
   L1 = sort(L),
   show_list(L1).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% private function
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+-spec sort(list(T)) -> list(T).
 sort(L) when length(L) =< 0 ->
   [];
 sort(L) ->
@@ -80,6 +56,9 @@ sort(L, F, I) ->
   L2 = heap_sort(L1, F, 1, I),
   sort(L2, F, I - 1).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% private function
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 build_heap(L, F) ->
   N = length(L),
   I = trunc(N / 2),
@@ -156,35 +135,6 @@ max_nodes(F, RootNode, LeftNode, RightNode) ->
     lower_than -> right;
     _ -> MaxResult
   end.
-
--spec swap(list(T), I, I) -> list(T).
-swap(L, null, _) -> L;
-swap(L, _, null) -> L;
-swap(L, Index, _) when Index =< 0 -> L;
-swap(L, Index, _) when Index > length(L) -> L;
-swap(L, _, Index) when Index =< 0 -> L;
-swap(L, _, Index) when Index > length(L) -> L;
-swap(L, Index1, Index2) when is_float(Index1) -> swap(L, trunc(Index1), Index2);
-swap(L, Index1, Index2) when is_float(Index2) -> swap(L, Index1, trunc(Index2));
-swap(L, Index1, Index2) when Index1 > Index2 -> swap(L, Index2, Index1);
-swap(L, Index1, Index2) ->
-  Item1 = lists:nth(Index1, L),
-  Item2 = lists:nth(Index2, L),
-  L1 = lists:append(
-    get_swap_head(L, Index1),
-    [Item2]),
-  L2 = lists:append(
-    L1,
-    get_swap_middle(L, Index1, Index2)),
-  L3 = lists:append(L2, [Item1]),
-  lists:append(L3, get_swap_tail(L, Index2)).
-
-get_swap_head(L, I) ->
-  lists:sublist(L, I -1).
-get_swap_middle(L, I1, I2) ->
-  lists:sublist(L, I1 + 1, I2 - I1 - 1).
-get_swap_tail(L, I) ->
-  lists:sublist(L, I + 1, length(L) - I).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % test function
@@ -268,8 +218,8 @@ show_swap_test_result(Title, Expect, Result) ->
   case Result of
     Expect ->
       T1 = Title ++ ": ~w",
-      ?INFO(T1, [true]);
+      ?OUTPUT_INFO(T1, [true]);
     _ ->
       T1 = Title ++ ": ~w~nExpect: ~w~nResult: ~w",
-      ?INFO(T1, [false, Expect, Result])
+      ?OUTPUT_INFO(T1, [false, Expect, Result])
   end.

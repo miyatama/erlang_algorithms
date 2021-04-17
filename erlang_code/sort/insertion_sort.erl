@@ -12,7 +12,7 @@
   get_sort_list/1,
   show_list/1,
   compare/2,
-  sort_test/1]).
+  sort_test/2]).
 
 -include("sort_record.hrl").
 -define(DEBUG(S), io:fwrite("[DEBUG] insertion_sort: " ++ S ++ "~n")).
@@ -21,7 +21,9 @@
 % -define(DEBUG(S, Args), io:fwrite("")).
 
 test() ->
-  sort_test(fun(L) -> sort(L) end).
+  sort_test(
+    insertion_sort,
+    fun(L) -> sort(L) end).
 
 start() ->
   ?DEBUG("start/0"),
