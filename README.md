@@ -226,3 +226,44 @@ quick_sort(L, PivotIndex) ->
 ```
 
 </details>
+
+## bucket sort
+
+[source code](./erlang_code/sort/bucket_sort.erl).
+
+<details><summary>sort logic</summary>
+
+```erlang
+-spec sort(list(T)) -> list(T).
+sort([]) -> [];
+sort(L) ->
+  sort(L, maps:new()).
+sort([], Map) ->
+  generate_list_from_map(Map, 1, [], maps:size(Map));
+sort(L, Map) ->
+  [#item{sort_value=Value}|T] = L,
+  Map1 = case maps:is_key(Value, Map) of
+    false ->
+      maps:put(Value, [#item{sort_value=Value}], Map);
+    true ->
+      MapList = maps:get(Value, Map),
+      RemovedMap = maps:remove(Value, Map),
+      maps:put(Value, [#item{sort_value=Value} | MapList], RemovedMap)
+  end,
+  sort(T, Map1).
+
+-spec generate_list_from_map(map(), integer(), list(T), integer()) -> list(T).
+generate_list_from_map(_, _, L, Size) when Size =< 0 -> L;
+generate_list_from_map(Map, I, L, _) ->
+  {MapList, Map1} = case maps:is_key(I, Map) of
+    true -> 
+      List = maps:get(I, Map),
+      RemovedMap = maps:remove(I, Map),
+      {List, RemovedMap};
+    false ->  {[], Map}
+  end,
+  L1 = lists:append(L, MapList),
+  generate_list_from_map(Map1, I + 1, L1, maps:size(Map1)).
+```
+
+</details>
