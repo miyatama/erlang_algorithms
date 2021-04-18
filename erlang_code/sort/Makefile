@@ -14,7 +14,8 @@ MODS = sort_funcs \
 	selection_sort \
 	heap_sort \
 	quick_sort \
-	bucket_sort
+	bucket_sort \
+	merge_sort
 
 all: compile
 

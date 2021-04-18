@@ -4,6 +4,49 @@ see [ALGORITHMS IN A NUTSHELL Second Edition]()
 
 # sort
 
+| name | example |
+| :----- | :----- |
+| insertion sort | exists |
+| selection sort | exists |
+| bubble sort | exists |
+| heap sort | exists |
+| quick sort | exists |
+| bucket sort | exists |
+| merge sort | none |
+| cocktail shaker sort  | none |
+| shell sort | none |
+| odd even sort | none |
+| gnome sort | none |
+| comb sort | none |
+| circle sort | none |
+| cycle sort | none |
+| smooth sort | none |
+| tournament sort | none |
+| patience sort | none |
+| unbalanced tree sort | none |
+| counting sort | none |
+| pigeonhole sort | none |
+| gravity sort | none |
+| american flag sort | none |
+| radix sort | none |
+| flash sort | none |
+| shatter sort | none |
+| time sort | none |
+| bitonic sort | none |
+| recursive pairwise sorting network | none |
+| hybrid comb sort | none |
+| tim sort | none |
+| wiki sort | none |
+| grail sort | none |
+| sqrt sort | none |
+| introspective sort[std::sort] | none |
+| pancake sorting | none |
+| bad sort | none |
+| stooge sort | none |
+| silly sort | none |
+| slow sort | none |
+| bogo sort | none |
+
 ## insertion sort
 
 [source code](./erlang_code/sort/insertion_sort.erl)
@@ -264,6 +307,53 @@ generate_list_from_map(Map, I, L, _) ->
   end,
   L1 = lists:append(L, MapList),
   generate_list_from_map(Map1, I + 1, L1, maps:size(Map1)).
+```
+
+</details>
+
+## merge sort
+
+[source code](./erlang_code/sort/merge_sort.erl).
+
+<details><summary>sort logic</summary>
+
+```erlang
+-spec sort(list(T)) -> list(T).
+sort([]) -> [];
+sort(L) when length(L) < 2 -> L;
+sort(L) when length(L) =:= 2 -> 
+  [Item1, Item2] = L,
+  case compare(Item1, Item2) of
+    greater_than -> swap(L, 1, 2);
+    _ -> L
+  end;
+sort(L) ->
+  SplitIndex = trunc(length(L) / 2),
+  {L1, L2} = split_list(SplitIndex, L),
+  SortedL1 = sort(L1),
+  SortedL2 = sort(L2),
+  merge(SortedL1, SortedL2).
+
+-spec merge(list(T), list(T)) -> list(T).
+merge(L1, L2) -> merge(L1, L2, []).
+-spec merge(list(T), list(T), list(T)) -> list(T).
+merge([], [], ResultList) -> ResultList;
+merge(L1, [], ResultList) -> lists:append(ResultList, L1);
+merge([], L2, ResultList) -> lists:append(ResultList, L2);
+merge(L1, L2, ResultList) -> 
+  [H1|T1] = L1,
+  [H2|T2] = L2,
+  case compare(H1, H2) of
+    equal_to ->
+      ResultList1 = lists:append(ResultList, [H1, H2]),
+      merge(T1, T2, ResultList1);
+    greater_than ->
+      ResultList1 = lists:append(ResultList, [H2]),
+      merge(L1, T2, ResultList1);
+    lower_than ->
+      ResultList1 = lists:append(ResultList, [H1]),
+      merge(T1, L2, ResultList1)
+  end.
 ```
 
 </details>
