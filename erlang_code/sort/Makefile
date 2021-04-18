@@ -15,7 +15,8 @@ MODS = sort_funcs \
 	heap_sort \
 	quick_sort \
 	bucket_sort \
-	merge_sort
+	merge_sort \
+	cocktail_shaker_sort	
 
 all: compile
 

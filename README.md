@@ -1,6 +1,6 @@
 # enjoy algorithms
 
-see [ALGORITHMS IN A NUTSHELL Second Edition]()
+see [ALGORITHMS IN A NUTSHELL Second Edition](https://www.oreilly.com/library/view/algorithms-in-a/9781491912973/)
 
 # sort
 
@@ -12,8 +12,8 @@ see [ALGORITHMS IN A NUTSHELL Second Edition]()
 | heap sort | exists |
 | quick sort | exists |
 | bucket sort | exists |
-| merge sort | none |
-| cocktail shaker sort  | none |
+| merge sort | exists |
+| cocktail shaker sort | exists |
 | shell sort | none |
 | odd even sort | none |
 | gnome sort | none |
@@ -353,6 +353,35 @@ merge(L1, L2, ResultList) ->
     lower_than ->
       ResultList1 = lists:append(ResultList, [H1]),
       merge(T1, L2, ResultList1)
+  end.
+```
+
+</details>
+
+## cocktail shaker sort
+
+
+[source code](./erlang_code/sort/cocktail_shaker_sort.erl).
+
+<details><summary>sort logic</summary>
+
+```erlang
+-spec sort(list(T)) -> list(T).
+sort([]) -> [];
+sort(L) ->
+  sort(L, min, [], []).
+sort([], _, Asc, Desc) ->
+  lists:append(Asc, lists:reverse(Desc));
+sort(L, Direction, Asc, Desc) ->
+  case Direction of
+    min ->
+      {MinValue, L1} = choice_min_value(L),
+      Asc1 = lists:append(Asc, [MinValue]),
+      sort(L1, max, Asc1, Desc);
+    max ->
+      {MaxValue, L1} = choice_max_value(L),
+      Desc1 = lists:append(Desc, [MaxValue]),
+      sort(L1, min, Asc, Desc1)
   end.
 ```
 
