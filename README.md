@@ -386,3 +386,31 @@ sort(L, Direction, Asc, Desc) ->
 ```
 
 </details>
+
+# search
+
+| name | example |
+| :----- | :----- |
+| sequential search | exists |
+| binary search | none |
+| hash based search | none |
+| bloom filter | none |
+
+## sequential search
+
+[source code](./erlang_code/search/sequential_search.erl)
+
+<details><summary>search logic</summary>
+
+```erlang
+-spec search(T, list(T)) -> T | not_found.
+search(_, []) -> not_found;
+search(Value, L) -> 
+  [H|T] = L,
+  case compare(Value, H) of
+    equal_to -> H;
+    _ -> search(Value, T)
+  end.
+```
+
+</details>
