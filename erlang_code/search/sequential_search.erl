@@ -11,10 +11,10 @@
   output_info/2,
   output_info/3]).
 
--define(OUTPUT_DEBUG(S, Args), output_debug(sezuential_search, S, Args)).
--define(OUTPUT_DEBUG(S), output_debug(sezuential_search, S)).
--define(OUTPUT_INFO(S, Args), output_info(sezuential_search, S, Args)).
--define(OUTPUT_INFO(S), output_info(sezuential_search, S)).
+-define(OUTPUT_DEBUG(S, Args), output_debug(sequential_search, S, Args)).
+-define(OUTPUT_DEBUG(S), output_debug(sequential_search, S)).
+-define(OUTPUT_INFO(S, Args), output_info(sequential_search, S, Args)).
+-define(OUTPUT_INFO(S), output_info(sequential_search, S)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % public function
