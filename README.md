@@ -392,7 +392,7 @@ sort(L, Direction, Asc, Desc) ->
 | name | example |
 | :----- | :----- |
 | sequential search | exists |
-| binary search | none |
+| binary search | exists |
 | hash based search | none |
 | bloom filter | none |
 
@@ -410,6 +410,29 @@ search(Value, L) ->
   case compare(Value, H) of
     equal_to -> H;
     _ -> search(Value, T)
+  end.
+```
+
+</details>
+
+## binary search
+
+[source code](./erlang_code/search/binary_search.erl)
+
+<details><summary>search logic</summary>
+
+```erlang
+-spec search(T, list(T)) -> T | not_found.
+search(_, []) -> not_found;
+search(Value, L) -> 
+  search(Value, L, 1, length(L)).
+search(_, _, Min, Max) when Min > Max -> not_found;
+search(Value, L, Min, Max) -> 
+  Index = trunc((Max + Min)  / 2),
+  case compare(Value, lists:nth(Index, L)) of 
+    equal_to -> Value;
+    greater_than -> search(Value, L, Index + 1, Max);
+    _ -> search(Value, L, Min, Index - 1)
   end.
 ```
 
