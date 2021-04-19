@@ -10,7 +10,8 @@ ERL = erl -boot start_clean
 
 MODS = search_funcs \
 	sequential_search \
-	binary_search
+	binary_search \
+	hash_based_search
 
 all: compile
 

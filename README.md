@@ -393,7 +393,7 @@ sort(L, Direction, Asc, Desc) ->
 | :----- | :----- |
 | sequential search | exists |
 | binary search | exists |
-| hash based search | none |
+| hash based search | exists |
 | bloom filter | none |
 
 ## sequential search
@@ -434,6 +434,38 @@ search(Value, L, Min, Max) ->
     greater_than -> search(Value, L, Index + 1, Max);
     _ -> search(Value, L, Min, Index - 1)
   end.
+```
+
+</details>
+
+## hash based search
+
+[source code](./erlang_code/search/hash_based_search.erl)
+
+<details><summary>search logic</summary>
+
+```erlang
+-spec search(T, list(T)) -> T | not_found.
+search(_, []) -> not_found;
+search(Value, L) -> 
+  HashTable = create_hash_table(L),
+  #item{value=SortValue} = Value,
+  ValueHash = hash(SortValue),
+  case maps:is_key(ValueHash, HashTable) of
+    false -> not_found;
+    true -> maps:get(ValueHash, HashTable)
+  end.
+
+-spec create_hash_table(list()) -> map().
+create_hash_table(L) ->
+  create_hash_table(L, maps:new()).
+-spec create_hash_table(list(), map()) -> map().
+create_hash_table([], Map) -> Map;
+create_hash_table(L, Map) ->
+  [H|T] = L,
+  #item{value=SortValue} = H,
+  Map1 = maps:put(hash(SortValue), H, Map),
+  create_hash_table(T, Map1).
 ```
 
 </details>
