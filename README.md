@@ -394,7 +394,7 @@ sort(L, Direction, Asc, Desc) ->
 | sequential search | exists |
 | binary search | exists |
 | hash based search | exists |
-| bloom filter | none |
+| bloom filter | exists |
 
 ## sequential search
 
@@ -468,4 +468,42 @@ create_hash_table(L, Map) ->
   create_hash_table(T, Map1).
 ```
 
+</details>
+
+## bloom filter
+
+see link
+
+ + [Bloom filterの説明](http://dev.ariel-networks.com/column/tech/boom_filter/)
+ + [Using Bloom Filters](https://www.perl.com/pub/2004/04/08/bloom_filters.html/)
+
+[source code](./erlang_code/search/bloom_filter.erl)
+
+<details><summary>search logic</summary>
+
+```erlang
+-spec search(T, list(T)) -> T | not_found.
+search(_, []) -> not_found;
+search(Value, L) -> 
+  Mod = 1024,
+  Filter = create_filter_table(L, Mod),
+  ?OUTPUT_DEBUG(
+     "filter: ~s", [[io_lib:format("~2.16.0B", [X]) || <<X:8>> <= Filter]]),
+  filtered(Value, Filter, Mod).
+
+-spec create_filter_table(list(), integer()) -> list().
+create_filter_table(L, _) when length(L) =< 0 -> [];
+create_filter_table(L, Mod) ->
+  BitLength = convert_mod_to_bitlength(Mod),
+  HashTable = <<0:BitLength>>,
+  set_bit_to_filter_table(L, HashTable, Mod).
+	
+set_bit_to_filter_table([], HashTable, _) -> HashTable;
+set_bit_to_filter_table(L, HashTable, Mod) ->
+  BitLength = convert_mod_to_bitlength(Mod),
+  [H|T] = L,
+  HashValue = value_to_hash(H, Mod),
+  HashTable1 = or_bit_string(HashTable, <<HashValue:BitLength>>),
+  set_bit_to_filter_table(T, HashTable1, Mod).
+```
 </details>

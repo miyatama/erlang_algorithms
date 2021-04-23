@@ -11,7 +11,8 @@ ERL = erl -boot start_clean
 MODS = search_funcs \
 	sequential_search \
 	binary_search \
-	hash_based_search
+	hash_based_search \
+	bloom_filter
 
 all: compile
 
