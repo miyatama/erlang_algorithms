@@ -8,16 +8,15 @@
 
 ERL = erl -boot start_clean
 
-MODS = search_funcs \
-	sequential_search \
-	binary_search \
-	hash_based_search \
-	bloom_filter \
-	binary_search_tree
-
 all: compile
 
-compile: ${MODS:%=%.beam}
+compile: ${MODS:%=%.beam} subdirs
+
+subdirs:
+	cd sort; make; cd ..
+	cd search; make
 
 clean:
 	rm -fr *.beam erl_crash.dump
+	cd sort; make clean; cd ..
+	cd search; make clean

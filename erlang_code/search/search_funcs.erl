@@ -15,7 +15,7 @@
 % 3: WARN
 % 4: ERROR
 % 5: FATAL
--define(LOG_LEVEL, 1).
+-define(LOG_LEVEL, 2).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % public function
@@ -73,6 +73,12 @@ search_test(Algorithm, F) ->
   SearchValue5 = #item{value=32761},
   Result5 = F(SearchValue5, List5),
   show_search_test_result(Algorithm, "case 005 10000 data: ~w", Expect5, Result5),
+  % search 10000 not found
+  Expect6 = not_found,
+  List6 = generate_test_value(get_10000_list()),
+  SearchValue6 = #item{value=32762},
+  Result6 = F(SearchValue6, List6),
+  show_search_test_result(Algorithm, "case 006 10000 data not found: ~w", Expect6, Result6),
   ok.    
 
 show_search_test_result(Algorithm, Title, Expect, Result) ->

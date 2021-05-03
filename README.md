@@ -395,6 +395,7 @@ sort(L, Direction, Asc, Desc) ->
 | binary search | exists |
 | hash based search | exists |
 | bloom filter | exists |
+| binary search tree | |
 
 ## sequential search
 
@@ -505,5 +506,15 @@ set_bit_to_filter_table(L, HashTable, Mod) ->
   HashValue = value_to_hash(H, Mod),
   HashTable1 = or_bit_string(HashTable, <<HashValue:BitLength>>),
   set_bit_to_filter_table(T, HashTable1, Mod).
+```
+</details>
+
+## binary search tree
+
+[source code](./erlang_code/search/bloom_filter.erl)
+
+<details><summary>search logic</summary>
+
+```erlang
 ```
 </details>
