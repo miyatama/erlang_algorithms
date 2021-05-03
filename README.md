@@ -511,10 +511,32 @@ set_bit_to_filter_table(L, HashTable, Mod) ->
 
 ## binary search tree
 
-[source code](./erlang_code/search/bloom_filter.erl)
+[source code](./erlang_code/search/binary_search_tree.erl)
 
 <details><summary>search logic</summary>
 
 ```erlang
+-spec search(T, list(T)) -> not_found | T.
+search(_, []) -> not_found;
+search(Value, L) ->
+  ?OUTPUT_DEBUG("search/2: ~w", [start]),
+  Tree = create_tree(L),
+  ?OUTPUT_DEBUG("search/2: ~w", [create_tree_finish]),
+  search_value(Value, Tree).
+
+-spec search_value(T, list(T)) -> not_found | T.
+search_value(Value, Tree) ->
+  search_value(Value, Tree, 1).
+search_value(_, Tree, Index) when length(Tree) < Index -> not_found;
+search_value(Value, Tree, Index) ->
+  [_, Node2Index, Node3Index] = get_node_indexes(Tree, Index),
+  ?OUTPUT_DEBUG("search_value/3: comapre ~w, ~w", [Value, list_nth(Index, Tree)]),
+  case compare(Value, list_nth(Index, Tree)) of
+    greater_than ->
+      search_value(Value, Tree, Node3Index);
+    lower_than ->
+      search_value(Value, Tree, Node2Index);
+    equal_to -> Value
+  end.
 ```
 </details>
