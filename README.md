@@ -670,3 +670,54 @@ choose_white_nodes(Nodes, Edges) ->
 ```
 
 </details>
+
+## breadth first search
+
+[source code](./erlang_code/graph/breadth_first_search.erl)
+
+<details><summary>search logic</summary>
+
+```erlang
+search(L) ->
+  Route = bfs_visit(L, start),
+  show_routes(Route),
+  ok.
+
+bfs_visit(Nodes, Target) ->
+  Queue = queue:new(),
+  Queue1 = queue:in(Target, Queue),
+  bfs_visit(Nodes, Target, Queue1).
+
+bfs_visit(Nodes, Target, Queue) ->
+  Node = queue:head(Queue),
+  Edges = get_endges(Nodes, Node),
+  {Nodes1, Queue1} = bfs_visit(Nodes, Node, Queue, Edges),
+  case queue:len(Queue1) of
+    0 ->  Nodes1;
+    _  -> bfs_visit(Nodes1, Target, Queue1)
+  end.
+
+-spec bfs_visit(list(), integer() | stop | start, list(), list()) -> {list(), list()}.
+bfs_visit(Nodes, Target, Queue, []) -> 
+  {_, Queue1} = queue:out(Queue),
+  Nodes1 = set_status(Nodes, Target, black),
+  {Nodes1, Queue1};
+bfs_visit(Nodes, Target, Queue, Edges) when is_list(Edges) ->
+  [H|T]  = Edges,
+  {Nodes1, Queue1} = bfs_visit(Nodes, Target, Queue, H),
+  bfs_visit(Nodes1, Target, Queue1, T);
+bfs_visit(Nodes, Target, Queue, Edge) ->
+  case get_status(Nodes, Edge) of
+    white ->
+      Dist = get_dist(Nodes, Target),
+      Nodes1 = set_dist(Nodes, Edge, Dist + 1),
+      Nodes2 = set_period(Nodes1, Edge, Target),
+      Nodes3 = set_status(Nodes2, Edge, gray),
+      Queue1 = queue:in(Edge, Queue),
+      {Nodes3, Queue1};
+    _ -> 
+      {Nodes, Queue}
+  end.
+```
+
+</details>
