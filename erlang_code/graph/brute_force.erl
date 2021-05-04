@@ -1,13 +1,13 @@
--module(depth_first_search).
+-module(brute_force).
 
 -export([test/0]).
 
 -record(vertex_record, {vertex, edges}).
 
--define(OUTPUT_DEBUG(S), io:fwrite("[DEBUG] depth_first_search: " ++ S ++ "~n")).
--define(OUTPUT_DEBUG(S, Args), io:fwrite("[DEBUG] depth_first_search: " ++ S ++ "~n", Args)).
--define(OUTPUT_INFO(S), io:fwrite("[INFO] depth_first_search: " ++ S ++ "~n")).
--define(OUTPUT_INFO(S, Args), io:fwrite("[INFO] depth_first_search: " ++ S ++ "~n", Args)).
+-define(OUTPUT_DEBUG(S), io:fwrite("[DEBUG] brute_force: " ++ S ++ "~n")).
+-define(OUTPUT_DEBUG(S, Args), io:fwrite("[DEBUG] brute_force: " ++ S ++ "~n", Args)).
+-define(OUTPUT_INFO(S), io:fwrite("[INFO] brute_force: " ++ S ++ "~n")).
+-define(OUTPUT_INFO(S, Args), io:fwrite("[INFO] brute_force: " ++ S ++ "~n", Args)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % public functions

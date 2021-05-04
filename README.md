@@ -577,11 +577,11 @@ data structure design
  + update
    + add vertex, edge
 
-## depth first search
+## brute force
 
 brute force search.
 
-[source code](./erlang_code/graph/depth_first_search.erl)
+[source code](./erlang_code/graph/brute_force.erl)
 
 <details><summary>search logic</summary>
 
