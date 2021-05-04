@@ -8,7 +8,9 @@
 
 ERL = erl -boot start_clean
 
-MODS = brute_force
+MODS = brute_force \
+			 depth_first_search
+
 
 all: compile
 

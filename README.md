@@ -395,7 +395,7 @@ sort(L, Direction, Asc, Desc) ->
 | binary search | exists |
 | hash based search | exists |
 | bloom filter | exists |
-| binary search tree | |
+| binary search tree | exists |
 
 ## sequential search
 
@@ -579,8 +579,6 @@ data structure design
 
 ## brute force
 
-brute force search.
-
 [source code](./erlang_code/graph/brute_force.erl)
 
 <details><summary>search logic</summary>
@@ -622,6 +620,53 @@ dfs_visit(Route, Edges, L, Dist) ->
   ResultRoute = dfs_visit(Route, H, L),
   Dist1 = lists:append(Dist, ResultRoute),
   dfs_visit(Route, T, L, Dist1).
+```
+
+</details>
+
+## depth first search
+
+[source code](./erlang_code/graph/depth_first_search.erl)
+
+<details><summary>search logic</summary>
+
+```erlang
+search(L) ->
+  Route = dfs_visit(L, start),
+  ?OUTPUT_DEBUG("create_route/2 - vertex: ~w", [Route]),
+  show_routes(Route),
+  ok.
+
+-spec dfs_visit(list(T), integer() | start | stop) -> list(T).
+dfs_visit(Nodes, TargetVertex) ->
+  Nodes1 = set_node_status(Nodes, TargetVertex, gray),
+  Edges = get_node_edges(Nodes, TargetVertex),
+  Edges1 = choose_white_nodes(Nodes, Edges),
+  dfs_visit(Nodes1, TargetVertex, Edges1).
+
+-spec dfs_visit(list(T), integer() | start | stop, list(integer() | start | stop)) -> list(T).
+dfs_visit(Nodes, TargetVertex, []) -> 
+  set_node_status(Nodes, TargetVertex, black);
+dfs_visit(Nodes, TargetVertex, Edges) ->
+  [H|T] = Edges,
+  Status = get_node_status(Nodes, H),
+  ?OUTPUT_DEBUG("dfs_visit/3 - vertex: ~w, status; ~w", [H, Status]),
+  Nodes1 = case Status of
+    white ->
+      set_node_period(Nodes, H, TargetVertex);
+    _ -> Nodes
+  end,
+  Nodes2 = dfs_visit(Nodes1, H),
+  dfs_visit(Nodes2, TargetVertex, T).
+
+choose_white_nodes(_, []) -> [];
+choose_white_nodes(Nodes, Edges) ->
+  [H|T] = Edges,
+  Targets = case get_node_status(Nodes, H) of
+    white -> [H];
+    _ -> []
+  end,
+  lists:append(Targets, choose_white_nodes(Nodes, T)).
 ```
 
 </details>
