@@ -540,3 +540,88 @@ search_value(Value, Tree, Index) ->
   end.
 ```
 </details>
+
+# Graph
+
+vertex, edge, node, link, path, weight
+
+ + undirected, unweighted graph
+   + (u, v) = (v, u)
+   + like a social network
+ + directed graph
+   + (u, v) /= (v, u)
+ + weighted graph
+   + weight(u, v)
+
+ex) directed weighted graph.6 vertex, 5 edge.
+
+```mermaid
+graph LR;
+
+v3((v3))-->|7|v0((v0))
+
+v4((v4))-->|10|v1((v1))
+v2((v2))-->|9|v4
+v4-->|11|v5((v5))
+v5-->|8|v2
+```
+
+data structure design
+
+ + create
+   + add vertex and edge
+ + inspect
+   + get graph infomation.directed or undirected.
+   + get edge from vertex
+   + get edge weight
+ + update
+   + add vertex, edge
+
+## depth first search
+
+brute force search.
+
+[source code](./erlang_code/graph/depth_first_search.erl)
+
+<details><summary>search logic</summary>
+
+```erlang
+-spec search(list(T)) -> list(T).
+search(L) ->
+  % [[start, 1, 8, ..], [start, 2, 8, ...]]
+  Routes = dfs_first_visit(start, L),
+  FilteredRoutes = filter_route(Routes),
+  show_routes(FilteredRoutes),
+  ok.
+
+dfs_first_visit(Route, L) ->
+  Edges = get_vertex_edges(Route, L),
+  dfs_first_visit(Route, L, Edges, []).
+dfs_first_visit(_, _, [], Dist) -> Dist;
+dfs_first_visit(Route, L, Edges, Dist) when is_list(Edges) ->
+  [H|T] = Edges,
+  % [[start, 1, 8, ...], [start, 1, 6, ...]]
+  ResultRoute = dfs_visit([Route], H, L),
+  Dist1 = lists:append(Dist, ResultRoute),
+  % [[start, 1, 8, ...], [start, 1, 6, ...], [start, 2, 3, ...]]
+  dfs_first_visit(Route, L, T, Dist1).
+
+-spec dfs_visit(list(), integer() | stop | start, list()) -> list().
+dfs_visit(Route, _, L) when length(Route) > length(L) -> Route;
+dfs_visit(Route, Vertex, L) ->
+  Route1 = lists:append(Route, [Vertex]),
+  Edges = get_vertex_edges(Vertex, L),
+  ExcludeVertexEdges = eliminate_vertex(Edges, Route),
+  dfs_visit(Route1, ExcludeVertexEdges, L, []).
+
+-spec dfs_visit(list(), list(), list(), list()) -> list().
+dfs_visit(Route, [], _, Dist) -> 
+  [Route | Dist];
+dfs_visit(Route, Edges, L, Dist) ->
+  [H|T] = Edges,
+  ResultRoute = dfs_visit(Route, H, L),
+  Dist1 = lists:append(Dist, ResultRoute),
+  dfs_visit(Route, T, L, Dist1).
+```
+
+</details>

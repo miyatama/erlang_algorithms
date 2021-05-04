@@ -14,9 +14,11 @@ compile: ${MODS:%=%.beam} subdirs
 
 subdirs:
 	cd sort; make; cd ..
-	cd search; make
+	cd search; make; cd ..
+	cd graph; make
 
 clean:
 	rm -fr *.beam erl_crash.dump
 	cd sort; make clean; cd ..
-	cd search; make clean
+	cd search; make clean; cd ..
+	cd graph; make clean
