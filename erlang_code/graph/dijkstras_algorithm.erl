@@ -1,4 +1,4 @@
--module(dikjstras_algorithm).
+-module(dijkstras_algorithm).
 
 -export([test/0]).
 
@@ -13,10 +13,10 @@
 % rd(priority_record, {vertex,edges,status,period,dist}).
 -record(priority_record, {vertex, dist}).
 
--define(OUTPUT_DEBUG(S), io:fwrite("[DEBUG] dikjstras_algorithm: " ++ S ++ "~n")).
--define(OUTPUT_DEBUG(S, Args), io:fwrite("[DEBUG] dikjstras_algorithm: " ++ S ++ "~n", Args)).
--define(OUTPUT_INFO(S), io:fwrite("[INFO] dikjstras_algorithm: " ++ S ++ "~n")).
--define(OUTPUT_INFO(S, Args), io:fwrite("[INFO] dikjstras_algorithm: " ++ S ++ "~n", Args)).
+-define(OUTPUT_DEBUG(S), io:fwrite("[DEBUG] dijkstras_algorithm: " ++ S ++ "~n")).
+-define(OUTPUT_DEBUG(S, Args), io:fwrite("[DEBUG] dijkstras_algorithm: " ++ S ++ "~n", Args)).
+-define(OUTPUT_INFO(S), io:fwrite("[INFO] dijkstras_algorithm: " ++ S ++ "~n")).
+-define(OUTPUT_INFO(S, Args), io:fwrite("[INFO] dijkstras_algorithm: " ++ S ++ "~n", Args)).
 -define(MAX_DIST, 9999).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

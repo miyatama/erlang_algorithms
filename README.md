@@ -722,9 +722,9 @@ bfs_visit(Nodes, Target, Queue, Edge) ->
 
 </details>
 
-## dikjstra's algorithm
+## dijkstra's algorithm
 
-[source code](./erlang_code/graph/dikjstra_algorithm.erl)
+[source code](./erlang_code/graph/dijkstra_algorithm.erl)
 
 <details><summary>search logic</summary>
 
