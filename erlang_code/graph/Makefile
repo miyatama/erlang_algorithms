@@ -11,7 +11,8 @@ ERL = erl -boot start_clean
 MODS = brute_force \
 			 depth_first_search \
 			 breadth_first_search \
-			 dijkstras_algorithm
+			 dijkstras_algorithm \
+			 dijkstras_algorithm_dense_graph
 
 all: compile
 

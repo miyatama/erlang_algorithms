@@ -771,3 +771,58 @@ calc_shortest_path(Nodes, PQ, MinVertex, Edges) ->
 ```
 
 </details>
+
+## dijkstra's algorithm dense graph
+
+[source code](./erlang_code/graph/dijkstra_algorithm_dense_graph.erl)
+
+<details><summary>search logic</summary>
+
+```erlang
+search(Nodes) ->
+    Nodes1 = set_dist(Nodes, start, 0),
+    calc_shortest_path(Nodes1).
+
+calc_shortest_path(Nodes) ->
+    TargetNode = get_non_visit_min_vertex(Nodes),
+    case TargetNode of
+        null -> Nodes;
+        _ -> calc_shortest_path(Nodes, TargetNode)
+    end.
+
+calc_shortest_path(Nodes, TargetNode) ->
+    case TargetNode#vertex_record.dist of
+        ?MAX_DIST -> Nodes;
+        _ ->
+            Nodes1 = set_visit(Nodes,
+                               TargetNode#vertex_record.vertex,
+                               true),
+            ResultNodes = calc_shortest_path(Nodes1,
+                                             TargetNode,
+                                             TargetNode#vertex_record.edges),
+            calc_shortest_path(ResultNodes)
+    end.
+
+calc_shortest_path(Nodes, _, []) -> Nodes;
+calc_shortest_path(Nodes, TargetNode, Edges) ->
+    [Edge | Retain] = Edges,
+    Weight = get_weight(Nodes,
+                        TargetNode#vertex_record.vertex,
+                        Edge#edge_record.vertex),
+    Length = TargetNode#vertex_record.dist + Weight,
+    EdgeDist = get_dist(Nodes, Edge#edge_record.vertex),
+    Nodes1 = case Length < EdgeDist of
+                 true ->
+                     SetDistNodes = set_dist(Nodes,
+                                             Edge#edge_record.vertex,
+                                             Length),
+                     SetPeriodNodes = set_period(SetDistNodes,
+                                                 Edge#edge_record.vertex,
+                                                 TargetNode#vertex_record.vertex),
+                     SetPeriodNodes;
+                 _ -> Nodes
+             end,
+    calc_shortest_path(Nodes1, TargetNode, Retain).
+```
+
+</details>
