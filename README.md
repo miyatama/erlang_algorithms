@@ -721,3 +721,53 @@ bfs_visit(Nodes, Target, Queue, Edge) ->
 ```
 
 </details>
+
+## dikjstra's algorithm
+
+[source code](./erlang_code/graph/dikjstra_algorithm.erl)
+
+<details><summary>search logic</summary>
+
+```erlang
+search(L) ->
+  Route = single_source_shortest(L, start),
+  show_routes(Route),
+  ok.
+
+single_source_shortest(Nodes, StartVertex) -> 
+  Nodes1 = set_dist(Nodes, StartVertex, 0),
+  PQ = create_fist_priority_list(Nodes1),
+  show_pq(PQ),
+  {Nodes2, _} = calc_shortest_path(Nodes1, PQ),
+  Nodes2.
+
+calc_shortest_path(Nodes, []) -> {Nodes, []};
+calc_shortest_path(Nodes, PQ) ->
+  {Nodes1, PQ1} = case length(PQ) of
+    0 -> {Nodes, PQ};
+    _ ->
+      {Vertex, RetainPQ} = get_min(PQ),
+      ?OUTPUT_DEBUG("calc_shortest_path/2 - vertex: ~w", [Vertex]),
+      Edges = get_edges(Nodes, Vertex),
+      calc_shortest_path(Nodes, RetainPQ, Vertex, Edges)
+  end,
+  calc_shortest_path(Nodes1, PQ1).
+calc_shortest_path(Nodes, PQ, _, [])  -> {Nodes, PQ};
+calc_shortest_path(Nodes, PQ, MinVertex, Edges) ->
+  [Edge|RetainEdges] = Edges,
+  Weight = get_weight(Nodes, MinVertex, Edge#edge_record.vertex),
+  MinVertexDist = get_dist(Nodes, MinVertex),
+  EdgeDist = get_dist(Nodes, Edge#edge_record.vertex),
+  Length = MinVertexDist + Weight,
+  {Nodes1, PQ1} = case Length < EdgeDist of
+    true ->
+      DecreasePQ = decrease_priority(PQ, Edge#edge_record.vertex, Length),
+      SetDistNodes = set_dist(Nodes, Edge#edge_record.vertex, Length),
+      SetPeriodNodes = set_period(SetDistNodes, Edge#edge_record.vertex, MinVertex),
+      {SetPeriodNodes, DecreasePQ};
+    false -> {Nodes, PQ}
+  end,
+  calc_shortest_path(Nodes1, PQ1, MinVertex, RetainEdges).
+```
+
+</details>
