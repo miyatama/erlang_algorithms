@@ -12,7 +12,8 @@ MODS = brute_force \
 			 depth_first_search \
 			 breadth_first_search \
 			 dijkstras_algorithm \
-			 dijkstras_algorithm_dense_graph
+			 dijkstras_algorithm_dense_graph \
+			 bellman_ford
 
 all: compile
 

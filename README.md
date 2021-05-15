@@ -826,3 +826,74 @@ calc_shortest_path(Nodes, TargetNode, Edges) ->
 ```
 
 </details>
+
+## Bellman-Ford
+
+[source code](./erlang_code/graph/bellman_ford.erl)
+
+<details><summary>search logic</summary>
+
+```erlang
+-spec search(list()) -> list().
+
+search([]) -> [];
+search(Nodes) ->
+    Nodes1 = set_dist(Nodes, start, 1),
+    search(Nodes1, 1).
+
+-spec search(list(), integer()) -> list().
+
+search(Nodes, Count) when Count > length(Nodes) ->
+    Nodes;
+search(Nodes, Count) ->
+    {Nodes1, Result} = single_source_shortest(Nodes,
+                                              get_edge_records(Nodes),
+                                              Count),
+    case Result of
+        true -> search(Nodes1, Count + 1);
+        false -> []
+    end.
+
+-spec single_source_shortest(list(), list(),
+                             integer()) -> {list(), true | false}.
+
+single_source_shortest(Nodes, [], _) -> {Nodes, true};
+single_source_shortest(Nodes, Edges, Count) ->
+    [Edge | EdgeRetain] = Edges,
+    ToDist = get_dist(Nodes, Edge#edge_record.to_vertex),
+    NewCost = get_dist(Nodes, Edge#edge_record.from_vertex)
+                  + Edge#edge_record.weight,
+    {ChangedDistNodes, NegativeLoopBreak} =
+        update_node_cost(Nodes, Edge, ToDist, NewCost, Count),
+    ?OUTPUT_DEBUG("single_source_shortest/3 - nggative "
+                  "loop: ~w",
+                  [NegativeLoopBreak]),
+    case NegativeLoopBreak of
+        true -> {[], false};
+        false ->
+            single_source_shortest(ChangedDistNodes,
+                                   EdgeRetain,
+                                   Count)
+    end.
+
+-spec update_node_cost(list(), list(), integer(),
+                       integer(), integer()) -> {list(), true | false}.
+
+update_node_cost(Nodes, Edge, Cost, NewCost,
+                 VertexCount)
+    when Cost > NewCost ->
+    ?OUTPUT_DEBUG("update_node_cost/5 - vertex: ~w, new "
+                  "cost: ~w, vertex count: ~w",
+                  [Edge#edge_record.to_vertex, NewCost, VertexCount]),
+    SetDistNodes = set_dist(Nodes,
+                            Edge#edge_record.to_vertex,
+                            NewCost),
+    SetPeriodNodes = set_period(SetDistNodes,
+                                Edge#edge_record.to_vertex,
+                                Edge#edge_record.from_vertex),
+    NegativeLoopBreak = VertexCount >= length(Nodes),
+    {SetPeriodNodes, NegativeLoopBreak};
+update_node_cost(Nodes, _, _, _, _) -> {Nodes, false}.
+```
+
+</details>
