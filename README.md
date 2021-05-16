@@ -897,3 +897,86 @@ update_node_cost(Nodes, _, _, _, _) -> {Nodes, false}.
 ```
 
 </details>
+
+## Floyd-Warshall
+
+[source code](./erlang_code/graph/floyd_warshall.erl)
+
+<details><summary>search logic</summary>
+
+```erlang
+-spec search(list()) -> list().
+
+search([]) -> [];
+search(Nodes) ->
+    Dists = generate_first_dists(Nodes),
+    calculate_cost(Nodes, Dists).
+
+-spec calculate_cost([map()], [map()]) -> [map()].
+
+calculate_cost([], _) -> [];
+calculate_cost(_, []) -> [];
+calculate_cost(Nodes, Dists) ->
+    Vertexes = [Vertex
+                || #vertex_record{vertex = Vertex} <- Nodes],
+    calculate_cost(Dists, Vertexes, Vertexes, Vertexes).
+
+calculate_cost(Dists, [], _, _) -> Dists;
+calculate_cost(Dists, _, [], _) -> Dists;
+calculate_cost(Dists, _, _, []) -> Dists;
+calculate_cost(Dists, Vertexes1, Vertexes2, Vertexes3)
+    when is_list(Vertexes1) and is_list(Vertexes2) and
+             is_list(Vertexes3) ->
+    [Vertex1 | Vertexes1Retain] = Vertexes1,
+    NewDists = calculate_cost(Dists,
+                              Vertex1,
+                              Vertexes2,
+                              Vertexes3),
+    calculate_cost(NewDists,
+                   Vertexes1Retain,
+                   Vertexes2,
+                   Vertexes3);
+calculate_cost(Dists, Vertex1, Vertexes2, Vertexes3)
+    when not is_list(Vertex1) and is_list(Vertexes2) and
+             is_list(Vertexes3) ->
+    [Vertex2 | Vertexes2Retain] = Vertexes2,
+    NewDists = calculate_cost(Dists,
+                              Vertex1,
+                              Vertex2,
+                              Vertexes3),
+    calculate_cost(NewDists,
+                   Vertex1,
+                   Vertexes2Retain,
+                   Vertexes3);
+calculate_cost(Dists, Vertex1, Vertex2, Vertexes3)
+    when not is_list(Vertex1) and not is_list(Vertex2) and
+             is_list(Vertexes3) ->
+    [Vertex3 | Vertexes3Retain] = Vertexes3,
+    NewDists = calculate_cost(Dists,
+                              Vertex1,
+                              Vertex2,
+                              Vertex3),
+    calculate_cost(NewDists,
+                   Vertex1,
+                   Vertex2,
+                   Vertexes3Retain);
+calculate_cost(Dists, Vertex1, Vertex2, Vertex3)
+    when not is_list(Vertex1) and not is_list(Vertex2) and
+             not is_list(Vertex3) ->
+    Dist1 = get_dist(Dists, Vertex2, Vertex1),
+    Dist2 = get_dist(Dists, Vertex1, Vertex3),
+    Dist3 = get_dist(Dists, Vertex2, Vertex3),
+    NewLen = Dist1#dist_record.cost +
+                 Dist2#dist_record.cost,
+    case NewLen < Dist3#dist_record.cost of
+        true ->
+            set_dist_and_period(Dists,
+                                Vertex2,
+                                Vertex3,
+                                NewLen,
+                                Dist2#dist_record.period);
+        false -> Dists
+    end.
+```
+
+</details>
