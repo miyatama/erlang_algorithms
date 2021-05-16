@@ -980,3 +980,90 @@ calculate_cost(Dists, Vertex1, Vertex2, Vertex3)
 ```
 
 </details>
+
+## Prim's algorithm
+
+[source code](./erlang_code/graph/prims_algorithm.erl)
+
+<details><summary>search logic</summary>
+
+```erlang
+spec search(list()) -> list().
+
+search(Nodes) ->
+    Keys = generate_initial_keys(Nodes),
+    Periods = generate_initial_periods(Nodes),
+    SetStartKeys = maps:put(0, 0, Keys),
+    PriorityQueue = generate_priority_queue(Nodes,
+                                            SetStartKeys),
+    {_, _, Routes} = create_paths(Nodes,
+                                  PriorityQueue,
+                                  SetStartKeys,
+                                  Periods),
+    Routes.
+
+create_paths(_, [], Keys, Periods) ->
+    {[], Keys, Periods};
+create_paths(Nodes, PQ, Keys, Periods)
+    when is_list(Nodes) ->
+    {PriorityRec, PopdPQ} = get_min(PQ),
+    Node =
+        lists:keyfind(PriorityRec#priority_queue_record.vertex,
+                      #vertex_record.vertex,
+                      Nodes),
+    {NewPQ, NewKeys, NewPeriods} = create_paths(Node,
+                                                PopdPQ,
+                                                Keys,
+                                                Periods),
+    create_paths(Nodes, NewPQ, NewKeys, NewPeriods);
+create_paths(Node, PQ, Keys, Periods) ->
+    create_paths(Node,
+                 Node#vertex_record.edges,
+                 PQ,
+                 Keys,
+                 Periods).
+
+create_paths(_, [], PQ, Keys, Periods) ->
+    {PQ, Keys, Periods};
+create_paths(Node, Edges, PQ, Keys, Periods)
+    when is_list(Edges) ->
+    [Edge | EdgeRetain] = Edges,
+    {NewPQ, NewKeys, NewPeirods} = case
+                                       exists_vertex_in_priority_queue(PQ,
+                                                                       Edge#edge_record.to_vertex)
+                                       of
+                                       true ->
+                                           calculate_cost(Node,
+                                                          Edge,
+                                                          PQ,
+                                                          Keys,
+                                                          Periods);
+                                       false -> {PQ, Keys, Periods}
+                                   end,
+    create_paths(Node,
+                 EdgeRetain,
+                 NewPQ,
+                 NewKeys,
+                 NewPeirods).
+
+calculate_cost(Node, Edge, PQ, Keys, Periods) ->
+    EdgeCost = Edge#edge_record.cost,
+    CurrentCost = maps:get(Edge#edge_record.to_vertex,
+                           Keys),
+    case EdgeCost < CurrentCost of
+        true ->
+            NewPeriods = maps:put(Edge#edge_record.to_vertex,
+                                  Node#vertex_record.vertex,
+                                  Periods),
+            NewKeys = maps:put(Edge#edge_record.to_vertex,
+                               EdgeCost,
+                               Keys),
+            NewPQ = decrease_priority(PQ,
+                                      Edge#edge_record.to_vertex,
+                                      EdgeCost),
+            {NewPQ, NewKeys, NewPeriods};
+        false -> {PQ, Keys, Periods}
+    end.
+```
+
+</details>

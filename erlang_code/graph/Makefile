@@ -14,7 +14,8 @@ MODS = brute_force \
 			 dijkstras_algorithm \
 			 dijkstras_algorithm_dense_graph \
 			 bellman_ford \
-			 floyd_warshall
+			 floyd_warshall \
+			 prims_algorithm
 
 all: compile
 
