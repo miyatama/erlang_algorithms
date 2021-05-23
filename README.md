@@ -1067,3 +1067,125 @@ calculate_cost(Node, Edge, PQ, Keys, Periods) ->
 ```
 
 </details>
+
+# Route search using AI
+
++ game tree
+  + 2 players
++ search tree
+  + 1 players
+
+## game tree
+
+use object
+
+```mermaid
+classDiagram
+
+class IGameState
+ IGameState : +isDraw() boolean
+ IGameState : +iwWin() boolean
+ IGameState : +copy() IGameState
+ IGameState : +equivalent(IGameState) boolean
+
+class IGameScore
+ IGameScore : +score(IGameState, IPlayer) int
+
+class IPlayer
+ IPlayer : +eval(IGameState) int
+ IPlayer : +score(IGameScore) void
+ IPlayer : +validMoves(IGameState) Collection<IGameMove>
+
+class IGameMove
+ IGameMove : +isValid(IGameState) boolean
+ IGameMove : +execute(IGameState) boolean
+ IGameMove : +undo(IGameState) boolean
+```
+
++ think point
+  + static evaluation function
+  + state expression
+  + calculation of effort
+  + limit of extended depth
+
+## minimax
+
+[source code](./erlang_code/route_search/minimax.erl)
+
+<details><summary>search logic</summary>
+
+```erlang
+best_move(State, MainPlayer) ->
+    PlyDepth = ?MAX_PLYDEPTH,
+    minimax(State, PlyDepth, MainPlayer, null, null).
+
+% minimax(GameState, PlyDepth, MainPlayer) -> {Move, Score}.
+-spec minimax(list(), integer(), map(), map(), integer()) -> {map(), integer()}.
+minimax(GameState, PlyDepth, MainPlayer, Move, Score)  ->
+    case is_leaf_scene(GameState, PlyDepth) of
+        true ->
+            NewScore = evaluate_score(GameState, MainPlayer),
+            ?OUTPUT_DEBUG(
+                "minimax - depth: ~w, side: ~w,move: ~w, score: ~w to ~w", 
+                [PlyDepth,
+                    MainPlayer#player_record.side,
+                    Move,
+                    Score,
+                    NewScore]),
+            show_state_list(GameState),
+            {Move, NewScore};
+        false ->
+            EmptyPositions = get_null_positions(GameState),
+            minimax(
+                GameState, 
+                PlyDepth, 
+                MainPlayer, 
+                EmptyPositions , 
+                null, 
+                get_side_min_score(MainPlayer#player_record.side))
+    end.
+
+-spec minimax(list(), integer(), map(), list(), map(), integer()) -> {map(), integer()}.
+minimax(_, _, _, [], Move, Score) -> 
+    {Move, Score};
+minimax(GameState, PlyDepth, MainPlayer, EmptyPositions, Move, Score) ->
+    [EmptyPosition | EmptyPositionRetain] = EmptyPositions,
+    ?OUTPUT_DEBUG(
+        "side: ~w, empty position: ~w.",
+        [MainPlayer#player_record.side,
+         EmptyPosition]),
+    GameStateAfterPlayer = set_game_state(GameState, MainPlayer, EmptyPosition),
+    {_, OpponentScore} = minimax(
+        GameStateAfterPlayer, 
+        PlyDepth - 1, 
+        get_opponent_player(MainPlayer), 
+        Move, 
+        Score),
+    show_state_list(GameStateAfterPlayer),
+    ?OUTPUT_DEBUG(
+        "after minimax - side: ~w, score: ~w to ~w.",
+        [MainPlayer#player_record.side,
+        Score,
+        OpponentScore]),
+    NeedExchangeMove = need_exchange_move(
+        get_opponent_player(MainPlayer),
+        Move, 
+        Score, 
+        OpponentScore),
+    {NewMove, NewScore} = case NeedExchangeMove of
+        true -> 
+            {EmptyPosition, OpponentScore};
+        _ -> {Move, Score}
+    end,
+    ?OUTPUT_DEBUG(
+        "minimax - depth: ~w, side: ~w,move: ~w to ~w, score: ~w to ~w", 
+        [PlyDepth,
+            MainPlayer#player_record.side,
+            Move,
+            NewMove,
+            Score,
+            NewScore]),
+    minimax(GameState, PlyDepth, MainPlayer, EmptyPositionRetain, NewMove, NewScore).
+```
+
+</details>
