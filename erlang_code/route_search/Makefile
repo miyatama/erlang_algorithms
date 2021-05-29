@@ -8,7 +8,8 @@
 
 ERL = erl -boot start_clean
 
-MODS = minimax
+MODS = minimax \
+	negmax
 
 all: compile
 

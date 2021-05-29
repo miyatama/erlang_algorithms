@@ -1189,3 +1189,78 @@ minimax(GameState, PlyDepth, MainPlayer, EmptyPositions, Move, Score) ->
 ```
 
 </details>
+
+## NegMax
+
+opponent worst case is best case.
+
+[source code](./erlang_code/route_search/negmax.erl)
+
+<details><summary>search logic</summary>
+
+```erlang
+best_move(State, MainPlayer) ->
+    PlyDepth = ?MAX_PLYDEPTH,
+    negmax(State, PlyDepth, MainPlayer, null, null).
+
+% negmax(GameState, PlyDepth, MainPlayer, Move, Score) -> {Move, Score}.
+-spec negmax(list(), integer(), map(), map(), integer()) -> {map(), integer()}.
+negmax(GameState, PlyDepth, MainPlayer, _, _) -> 
+    case is_leaf_scene(GameState, PlyDepth) of
+        true -> 
+            Score = evaluate_score(GameState, MainPlayer),
+            ?OUTPUT_DEBUG(
+                "negmax - arrival leaf. score is ~w. side is ~w.",
+                [Score, MainPlayer#player_record.side]),
+            {null, Score};
+        false -> 
+            EmptyPositions = get_null_positions(GameState),
+            negmax(
+                GameState, 
+                PlyDepth, 
+                MainPlayer, 
+                EmptyPositions , 
+                null,
+                null)
+
+    end.
+
+negmax(_, _, _, [], Move, Score) -> {Move, Score};
+negmax(GameState, PlyDepth, MainPlayer, EmptyPositions, Move, Score) ->
+    [EmptyPosition | EmptyPositionRetain] = EmptyPositions,
+    GameStateAfterPlayer = set_game_state(GameState, MainPlayer, EmptyPosition),
+    {_, OpponentScore} = negmax(
+        GameStateAfterPlayer, 
+        PlyDepth - 1, 
+        get_opponent_player(MainPlayer), 
+        Move, 
+        Score),
+    NeedExchangeMove = need_exchange_move(
+        Score, 
+        OpponentScore),
+    {NewMove, NewScore} = case NeedExchangeMove of
+        true -> 
+            case PlyDepth of
+                ?MAX_PLYDEPTH ->
+                    ?OUTPUT_DEBUG(
+                        "negmax - depth: ~w, side: ~w,move: ~w to ~w, score: ~w to ~w", 
+                        [PlyDepth,
+                            MainPlayer#player_record.side,
+                            Move,
+                            EmptyPosition,
+                            Score,
+                            OpponentScore]);
+                _ -> ok
+            end,
+            {EmptyPosition, (-1 * OpponentScore)};
+        _ -> {Move, Score}
+    end,
+    negmax(GameState, PlyDepth, MainPlayer, EmptyPositionRetain, NewMove, NewScore). 
+
+-spec need_exchange_move(integer() | nulll, integer()) -> true | false.
+need_exchange_move(null, _) -> true;
+need_exchange_move(OldScore, NewScore) ->
+    ((-1 * NewScore) > OldScore).
+```
+
+</details>
