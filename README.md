@@ -1264,3 +1264,80 @@ need_exchange_move(OldScore, NewScore) ->
 ```
 
 </details>
+
+## Alpha Beta
+
+[source code](./erlang_code/route_search/alpha_beta.erl)
+
+<details><summary>search logic</summary>
+
+```erlang
+best_move(State, MainPlayer) ->
+    PlyDepth = (?MAX_PLYDEPTH),
+    alpha_beta(State,
+               PlyDepth,
+               MainPlayer,
+               null,
+               null,
+               ?LOSE_SCORE,
+               ?WIN_SCORE).
+
+alpha_beta(GameState, PlyDepth, MainPlayer, Move, Score,
+           Low, High) ->
+    case allow_thinking(GameState, PlyDepth) of
+        true ->
+            alpha_beta(GameState,
+                       PlyDepth,
+                       MainPlayer,
+                       get_valid_move(GameState),
+                       Move,
+                       Score,
+                       Low,
+                       High);
+        false ->
+            ?OUTPUT_DEBUG("alpha_beta - arrival leaf: ~w",
+                          [GameState]),
+            {null, evaluate_score(GameState, MainPlayer)}
+    end.
+
+alpha_beta(GameState, _, _, [], Move, Score, _, _) ->
+    ?OUTPUT_DEBUG("alpha_beta: valid moves not found: ~w",
+                  [GameState]),
+    {Move, Score};
+alpha_beta(GameState, PlyDepth, MainPlayer, ValidMoves,
+           Move, Score, Low, High) ->
+    [ValidMove | ValidMovesRetain] = ValidMoves,
+    MovedGameState = set_move(GameState,
+                              MainPlayer,
+                              ValidMove),
+    {_, OpponentScore} = alpha_beta(MovedGameState,
+                                    PlyDepth - 1,
+                                    get_opponent_player(MainPlayer),
+                                    null,
+                                    null,
+                                    High * -1,
+                                    Low * -1),
+    {NewMove, NewScore, NewLow} = case
+                                      need_exchange_score(Score, OpponentScore)
+                                      of
+                                      true ->
+                                          {ValidMove,
+                                           Low * -1,
+                                           OpponentScore * -1};
+                                      false -> {Move, Score, Low}
+                                  end,
+    case NewLow >= High of
+        true -> {NewMove, NewScore};
+        false ->
+            alpha_beta(GameState,
+                       PlyDepth,
+                       MainPlayer,
+                       ValidMovesRetain,
+                       NewMove,
+                       NewScore,
+                       NewLow,
+                       High)
+    end.
+```
+
+</details>

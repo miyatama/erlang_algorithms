@@ -9,7 +9,8 @@
 ERL = erl -boot start_clean
 
 MODS = minimax \
-	negmax
+	negmax \
+	alpha_beta
 
 all: compile
 
