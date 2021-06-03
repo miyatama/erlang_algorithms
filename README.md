@@ -1341,3 +1341,77 @@ alpha_beta(GameState, PlyDepth, MainPlayer, ValidMoves,
 ```
 
 </details>
+
+## Depth-First Search
+
+[source code](./erlang_code/graph_search/depth_first_search.erl)
+
+<details><summary>search logic</summary>
+
+```erlang
+search(GameState) -> 
+  GameStateStack = queue:new(),
+  InitialGameStateStack = queue:in(GameState, GameStateStack),
+  ClosedList = [],
+  search(InitialGameStateStack, ClosedList).
+
+% GameStateStack -> game state queue.
+% ClosedList -> already scene game state
+% PlyDepth -> think depth
+-spec search(list(game_state_record), list(game_state_record)) -> {solution | no_solution, list(game_state_record)}.
+search(GameStateStack, ClosedList) ->
+  StackSize = queue:len(GameStateStack),
+  case StackSize of
+    0 -> 
+      {no_solution, ClosedList};
+    _ ->
+      GameState = queue:last(GameStateStack),
+      PopedGameStateStack = queue:liat(GameStateStack),
+      case GameState#game_state_record.move of
+        null ->
+          ?OUTPUT_DEBUG("move is ~w", [null]),
+          show_state(GameState#game_state_record.states);
+        _ -> ok
+      end,
+      UpdatedClosedList = ClosedList ++ [GameState],
+      Moves = get_valid_move(GameState#game_state_record.states),
+      search(GameState, PopedGameStateStack, UpdatedClosedList, Moves)
+  end.
+
+search(_, GameStateStack, ClosedList, []) -> 
+  search(GameStateStack, ClosedList);
+search(GameState, GameStateStack, ClosedList, Moves) ->
+  [Move|MovesRetain] = Moves,
+  NullPosition = get_null_value_state_record(GameState#game_state_record.states),
+  {_, MovedStates} = move_position(GameState#game_state_record.states, Move),
+  MovedGameStates = #game_state_record{
+    depth=GameState#game_state_record.depth + 1,
+    move=NullPosition#state_record.position, 
+    states=MovedStates
+  },
+  ExistsClosed = exists_states(MovedStates, ClosedList),
+  IsGoal = is_goal_state(MovedStates),
+  InRangeDepth = MovedGameStates#game_state_record.depth < ?MAX_DEPTH,
+  {Result, UpdatedGameStackState, UpdatedClosedList} = case {ExistsClosed, IsGoal, InRangeDepth} of
+    % arrival goal
+    {false, true, _} -> 
+      AddGoalSceneClosedList = ClosedList ++ [MovedGameStates],
+      {goal, GameStateStack, AddGoalSceneClosedList};
+
+    % not arrival goal and depth in range
+    {false, false, true} ->
+      AddedGameStateStack = queue:in(MovedGameStates, GameStateStack),
+      {not_goal, AddedGameStateStack, ClosedList};
+
+    _ ->
+      {not_goal, GameStateStack, ClosedList}
+  end,
+  case Result of
+    goal ->
+      {solution, UpdatedClosedList};
+    _ ->
+      search(GameState, UpdatedGameStackState, UpdatedClosedList, MovesRetain)
+  end.
+````
+
+</details>
