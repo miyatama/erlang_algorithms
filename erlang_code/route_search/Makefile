@@ -11,7 +11,8 @@ ERL = erl -boot start_clean
 MODS = minimax \
 	negmax \
 	alpha_beta \
-	depth_first_search
+	depth_first_search \
+	breadth_first_search
 
 all: compile
 

@@ -1415,3 +1415,71 @@ search(GameState, GameStateStack, ClosedList, Moves) ->
 ````
 
 </details>
+
+## Breadth-First Search
+
+[source code](./erlang_code/route_search/breadth_first_search.erl)
+
+<details><summary>search logic</summary>
+
+```erlang
+-spec search(game_state_record) -> {solution | not_solution, list(game_state_record)}.
+search(GameState) ->
+  OpenQueue = queue:new(),
+  InitializedOpenQueue  = queue:in(GameState, OpenQueue),
+  ClosedGameStateLisst = [],
+  search(InitializedOpenQueue, ClosedGameStateLisst).
+
+-spec search(list(game_state_record), list(game_state_list)) -> 
+  {solution|not_solution, list(game_state_list)}.
+search(OpenQueue, ClosedList) ->
+  case queue:len(OpenQueue) of
+    0 -> {no_solution, ClosedList};
+    _ ->
+      {{value, HeadGameState}, HeadedOpenQueue} = queue:out(OpenQueue),
+      AddedClosedList = [HeadGameState] ++ ClosedList,
+      ValidMoves = generate_valid_moves(HeadGameState),
+      search(HeadedOpenQueue, AddedClosedList, HeadGameState, ValidMoves)
+  end.
+
+-spec search(
+    list(game_state_record), 
+    list(game_state_record), 
+    game_state_record,
+    list({integer(), integer()})) ->
+  {solution|not_solution, list(game_state_list)}.
+search(OpenQueue, ClosedList, _, []) ->
+  search(OpenQueue, ClosedList);
+search(OpenQueue, ClosedList, GameState, Moves) ->
+  [Move|MoveRetain] = Moves,
+  % for route trace
+  NullPositionBeforeMove = get_null_position(
+    GameState#game_state_record.board_records),
+  MovedGameState = calculate_moved_game_state(GameState, Move),
+  ExistsClosedList = exists_closed_list(MovedGameState, ClosedList),
+  IsGoal = is_goal_game_state(MovedGameState),
+  {Result, NewOpenQueue, NewClosedList} = case {ExistsClosedList, IsGoal} of
+    % arrival goal
+    {false, true} ->
+      ChangeMovedGameState = MovedGameState#game_state_record{move=NullPositionBeforeMove},
+      AddFinishedClosedList = ClosedList ++ [ChangeMovedGameState],
+      {solution, OpenQueue, AddFinishedClosedList};
+    {false, _} ->
+      ?OUTPUT_DEBUG(
+        "search - add queue (null: ~w, move: ~w)",
+        [NullPositionBeforeMove, Move]),
+      ChangeMovedGameState = MovedGameState#game_state_record{move=NullPositionBeforeMove},
+      AddMovedOpenQueue = queue:in(ChangeMovedGameState, OpenQueue),
+      {no_solution, AddMovedOpenQueue, ClosedList};
+    _ ->
+      {no_solution, OpenQueue, ClosedList}
+  end,
+  case Result of
+    solution ->
+      {solution, NewClosedList};
+    _ ->
+      search(NewOpenQueue, NewClosedList, GameState, MoveRetain)
+  end.
+```
+
+</details>
