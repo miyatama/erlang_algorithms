@@ -12,7 +12,8 @@ MODS = minimax \
 	negmax \
 	alpha_beta \
 	depth_first_search \
-	breadth_first_search
+	breadth_first_search \
+  aster
 
 all: compile
 

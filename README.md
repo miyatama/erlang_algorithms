@@ -1483,3 +1483,116 @@ search(OpenQueue, ClosedList, GameState, Moves) ->
 ```
 
 </details>
+
+## A* Search
+
+Score Evaluator
+
+ + FairEvaluator
+   + summary of manhattan distance what position to correct position.(P(n))
+ + GoodEvaluator
+   + P(n) + 3 * S(n).
+   + S(n) is summary of outer score
+     + correct -> 0
+     + incorrect -> 2
+     + center piece -> 1
+ + WeakEvaluator
+   + invalid position count
+ + BadEvaluator
+   + score is 16 - summary of delta what other side.ignore the center.
+
+[source code](./erlang_code/route_search/aster.erl)
+
+<details><summary>search logic</summary>
+
+```erlang
+% EvaluatorType -> 
+%   fair_evaluator | good_evalueator | weak_evalueator | bad_evaluator
+-spec search(game_state_record, atom()) -> 
+  {solution | not_solution, list(game_state_record)}.
+search(InitialGameState, EvaluatorType) ->
+  OpenGameStateList = [InitialGameState],
+  ClosedGameStateList = [],
+  search(
+    OpenGameStateList, 
+    ClosedGameStateList, 
+    EvaluatorType).
+
+-spec search(list(game_state_record), list(game_state_record), atom()) -> 
+  {solution | not_solution, list(game_state_record)}.
+search([], ClosedGameStateList, _) ->
+  {not_solution, ClosedGameStateList};
+search(OpenGameStateList, ClosedGameStateList, EvaluatorType) ->
+  {GameState, RemovedOpenGameStateList} = 
+    get_minimum_priority_game_state(OpenGameStateList),
+  ArrivalGoal = is_goal_game_state(GameState),
+  case ArrivalGoal of
+    true ->
+      % add goal game state
+      AddGoalClosedGameStateList = 
+        [GameState] ++ ClosedGameStateList,
+      {solution, AddGoalClosedGameStateList};
+    false ->
+      AddedClosedGameStateList = [GameState] ++ ClosedGameStateList,
+      ValidMoves = generate_valid_moves(GameState),
+      search(
+        GameState,
+        RemovedOpenGameStateList, 
+        AddedClosedGameStateList, 
+        EvaluatorType,
+        ValidMoves 
+       )
+  end.
+
+-spec search(
+    game_state_record, 
+    list(game_state_record), 
+    list(game_state_record), 
+    atom(), 
+    list(move_record)) -> 
+  {solution | not_solution, list(game_state_record)}.
+search(_, OpenGameStateList, ClosedGameStateList, EvaluatorType, []) ->
+  search(OpenGameStateList, ClosedGameStateList, EvaluatorType);
+search(GameState, OpenGameStateList, ClosedGameStateList, EvaluatorType, Moves) ->
+  [Move|MoveRetain] = Moves,
+  MovedGameState = execute_move(GameState, Move),
+  ExistsCloseList = exists_game_state_list(MovedGameState, ClosedGameStateList),
+  ExistsOpenGameState = find_game_state(MovedGameState, OpenGameStateList),
+  ScoreAfterMove = evaluate_score(MovedGameState, EvaluatorType),
+  ScoredMovedGameState = MovedGameState#game_state_record{score=ScoreAfterMove},
+  {NextOpenGameStateList} = case {ExistsCloseList, ScoredMovedGameState#game_state_record.depth, ExistsOpenGameState} of
+    % exists closed list
+    {true, _, _} ->
+      {OpenGameStateList};
+
+    % arrival max depth
+    {false, ?MAX_DEPTH, _} ->
+      {OpenGameStateList};
+
+    % open state not exists
+    {false, _, null} ->
+      AddNextStateOpenGameStateList = 
+        [ScoredMovedGameState] ++ OpenGameStateList,
+      {AddNextStateOpenGameStateList};
+
+    % open state exists
+    {false, _, OpenGameState} ->
+      % remove open game state and add moved game state
+      RemovedGreaterSccore = 
+        remove_greater_score_game_state(
+          ScoreAfterMove, 
+          OpenGameState, 
+          OpenGameStateList),
+      AddNextStateOpenGameStateList = 
+        [ScoredMovedGameState] ++ RemovedGreaterSccore,
+      {AddNextStateOpenGameStateList}
+  end,
+  search(
+    GameState, 
+    NextOpenGameStateList, 
+    ClosedGameStateList, 
+    EvaluatorType, 
+    MoveRetain).
+```
+
+</details>
