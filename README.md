@@ -1596,3 +1596,229 @@ search(GameState, OpenGameStateList, ClosedGameStateList, EvaluatorType, Moves) 
 ```
 
 </details>
+
+# Nework flow algorithm
+
+```mermaid
+graph TB;
+
+alg1[General-purpose linear programming]-->alg2[Minimum flow]
+alg3[Transhipment problem]-->alg2
+alg2-->alg4[Maximum flow]
+alg4-->alg5[Bipartite matching]
+alg3-->alg6[Transportation problem]
+alg6-->alg7[Assignment problem]
+```
+
+graph structure
+
+```math
+graph = G = (V,E) \\
+vertexes = V \\
+edges = E \\
+s = source \\
+s \in V \\
+t = sink \\
+t \in V \\
+e(u, v) = edge \\
+f(u, v) = flow cost \\
+c(u, v) = capacity \\
+```
+
+flow constraint
+
+```math
+f(u, v) \geqq 0 \\
+f(u, v) \leqq c(u, v) 
+```
+
+cost constraint
+
+```math
+e(u, v)  \notin E \\
+\rightarrow c(u, v) = 0
+```
+
+flow save
+
+```math
+s \notin v, u, w \\
+t \notin v, u, w \\
+\sum f(v, u) = \sum f(u, w)
+```
+
+skew symmetry
+
+```math
+f(u, v) = f(v, u) * -1
+```
+
+## Ford-Fullkerson
+
+maximum flow.
+
+```math
+path = (p_0, ..., p_{n-1}) \\
+p_0 = s \\
+p_{n-1} = t \\
+```
+
+forward edge
+
+```math
+e(p_i, p_{i+1}) \in E 
+```
+
+backward edge
+
+```math
+e(p_{i+1}, p_i) \in E
+```
+
+[source code](./erlang_code/netowrk_flow/ford_fullkerson.erl)
+
+<details><summary>compute logic</summary><div>
+
+```erlang
+-spec generate_argumenting_path(list(edge_record)) -> list(argumenting_path_record).
+generate_argumenting_path(Graph) ->
+  Queue = [source],
+  ArgPaths = [
+    #argumenting_path_record{
+      vertex=source,
+      previous=null,
+      direction=none}],
+  generate_argumenting_path(Graph, Queue, ArgPaths).
+
+-spec generate_argumenting_path(
+    list(edge_record), 
+    list(atom()), 
+    list(argumenting_path_record)
+  ) -> list(argumenting_path_record).
+generate_argumenting_path(_, [], _) -> 
+  [];
+generate_argumenting_path(Edges, PathQueue, ArgPaths) -> 
+  {Vertex, PathQueueRetain} = pop_vertex_queue(PathQueue),
+  {ExistsArgumentingPath, PathQueue2, ArgPaths2} = 
+    generate_argumenting_path_forward(Edges, PathQueueRetain, ArgPaths, Vertex),
+  case ExistsArgumentingPath of
+    true -> 
+      ArgPaths2;
+    false -> 
+      {PathQueue3, ArgPaths3} = 
+        generate_argumenting_path_backward(
+          Edges, 
+          PathQueue2, 
+          ArgPaths2, 
+          Vertex),
+      generate_argumenting_path(Edges, PathQueue3, ArgPaths3)
+  end.
+
+-spec process_path(list(edge_record), list(argumenting_path_record)) -> list(edge_record).
+process_path(Edges, ArgPaths) ->
+  Vertex = sink,
+  Delta = calculate_delta(Edges, ArgPaths, Vertex, ?MAX_DELTA),
+  ?OUTPUT_DEBUG(
+    "process_path/2 - delta: ~w",
+    [Delta]),
+  reflect_delta(Edges, ArgPaths, Delta).
+
+-spec calculate_delta(
+    list(edge_record), 
+    list(argumenting_path_record),
+    atom(),
+    integer()
+  ) -> integer().
+calculate_delta(_, _, source, Delta) -> Delta;
+calculate_delta(Edges, ArgPaths, Vertex, Delta) ->
+  ?OUTPUT_DEBUG(
+    "calculate_delta/4 - vertex: ~w",
+    [Vertex]),
+  ArgPath = find_argumenting_path(Vertex, ArgPaths),
+  {TryDelta, NextVertex}  = case ArgPath#argumenting_path_record.direction of
+    forward ->
+      ?OUTPUT_DEBUG(
+        "calculate_delta/4 - forward(vertex: ~w, previous: ~w)",
+        [
+          ArgPath#argumenting_path_record.vertex,
+          ArgPath#argumenting_path_record.previous
+        ]),
+      Edge = find_edge(
+        ArgPath#argumenting_path_record.previous,
+        ArgPath#argumenting_path_record.vertex,
+        Edges),
+      {
+        Edge#edge_record.capacity - Edge#edge_record.flow, 
+        Edge#edge_record.from
+      };
+    backward ->
+      ?OUTPUT_DEBUG(
+        "calculate_delta/4 - backward(vertex: ~w, previous: ~w)",
+        [
+          ArgPath#argumenting_path_record.vertex,
+          ArgPath#argumenting_path_record.previous
+        ]),
+      Edge = find_edge(
+        ArgPath#argumenting_path_record.vertex,
+        ArgPath#argumenting_path_record.previous,
+        Edges),
+      {
+        Edge#edge_record.flow,
+        Edge#edge_record.to
+      }
+  end,
+  NewDelta = erlang:min(Delta, TryDelta),
+  ?OUTPUT_DEBUG(
+    "calculate_delta/4 - delta ~w , try delta: ~w",
+    [Delta, TryDelta]),
+  calculate_delta(Edges, ArgPaths, NextVertex, NewDelta).
+
+-spec reflect_delta(
+    list(edge_record), 
+    list(argumenting_path_record), 
+    integer()
+  ) -> list(edge_record).
+reflect_delta(Edges, ArgPaths, Delta) ->
+  Vertex = sink,
+  reflect_delta(Edges, ArgPaths, Delta, Vertex).
+
+-spec reflect_delta(
+    list(edge_record), 
+    list(argumenting_path_record), 
+    integer(),
+    atom() 
+  ) -> list(edge_record).
+reflect_delta(Edges, _, _, source) -> Edges;
+reflect_delta(Edges, ArgPaths, Delta, Vertex) -> 
+  ?OUTPUT_DEBUG(
+     "reflect_delta/4 - edge length: ~w",
+     [length(Edges)]),
+  ?OUTPUT_DEBUG(
+     "reflect_delta/4 - vertex: ~w in ~w",
+     [Vertex, ArgPaths]),
+  ArgPath = find_argumenting_path(Vertex, ArgPaths),
+
+  ?OUTPUT_DEBUG(
+     "reflect_delta/4 - founded arg path: ~w",
+     [ArgPath]),
+
+  {Edges2, NextVertex} = case ArgPath#argumenting_path_record.direction of
+    forward ->
+      NewEdge = add_flow(
+        Edges, 
+        ArgPath#argumenting_path_record.previous, 
+        Vertex, 
+        Delta),
+      {NewEdge, ArgPath#argumenting_path_record.previous};
+    backward ->
+      NewEdge = sub_flow(
+        Edges, 
+        Vertex,
+        ArgPath#argumenting_path_record.previous,
+        Delta),
+      {NewEdge, ArgPath#argumenting_path_record.previous}
+  end,
+  reflect_delta(Edges2, ArgPaths, Delta, NextVertex).
+```
+
+</div></details>
