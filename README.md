@@ -2013,3 +2013,130 @@ remove_first_vertex_queue(Queue) ->
 ```
 
 </div></details>
+
+## Biporate matching
+
+think of biporate matching problem as the maximum flow problem.
+
+ex) matching jobs with qualified people.
+
+```math
+jobs = s_{i} \in S \\
+peoples = t_{j} \in J \\
+skils = p_{k} \in P \\
+p_{k} = (s_{i}, t_{j}) \\
+```
+
+think graph structure.convert jobs and peoples to vertexes.
+
+```math
+source = V[-1] \\
+S = V[0, n -1] \\
+T = V[n, n + m] \\
+sink = V[n + m + 1]
+```
+
+convert skils to edges between S and T.edge capacity is 1 const.
+
+```mermaid
+graph LR;
+
+src((src))-->s0((s0))
+src((src))-->s1((s1))
+src((src))-->sn((sn))
+s0-->t0((t0))
+s1-->t0
+s1-->t1((t1))
+sn-->tm((tm))
+t0-->sink((sink))
+t1-->sink
+tm-->sink
+```
+
+[source code](./erlang_code/network_flow/biporate_matching.erl)
+
+<details><summary>convert logic</summary><div>
+
+```erlang
+generate_initial_graph(TestCase) ->
+  Jobs=generate_initial_jobs(TestCase),
+  Peoples=generate_initial_peoples(TestCase),
+  Edges = generate_graph_edges(Jobs, Peoples),
+  ShapedEdges = remove_duplicate_edge(Edges),
+  show_result(ShapedEdges),
+  ShapedEdges.
+
+-spec generate_graph_edges(
+    list(job_record),
+    list(people_record)
+  ) -> list(edge_record).
+generate_graph_edges([], _) -> [];
+generate_graph_edges(Jobs, Peoples) ->
+  [Job | JobsRetain] = Jobs,
+  Edges = generate_graph_edges_per_job(Job, Peoples),
+  Edges ++ generate_graph_edges(JobsRetain, Peoples).
+
+-spec generate_graph_edges_per_job(
+    job_record,
+    list(people_record)
+  ) -> list(edge_record).
+generate_graph_edges_per_job(_, []) -> [];
+generate_graph_edges_per_job(Job, Peoples) ->
+  [People | PeoplesRetain] = Peoples,
+  Edge = case match_job_and_people(Job, People) of
+    true ->
+      [
+        #edge_record{
+           from=source,
+           to=Job#job_record.name,
+           flow=0,
+           capacity=1
+        },
+        #edge_record{
+           from=Job#job_record.name,
+           to=People#people_record.name,
+           flow=0,
+           capacity=1
+        },
+        #edge_record{
+           from=People#people_record.name,
+           to=sink,
+           flow=0,
+           capacity=1
+        }
+      ];
+    false -> []
+  end,
+  Edge ++ generate_graph_edges_per_job(Job, PeoplesRetain).
+
+-spec remove_duplicate_edge(list(edge_record)) -> list(edge_record).
+remove_duplicate_edge([]) -> [];
+remove_duplicate_edge(Edges) ->
+  [Edge | Retain] = Edges,
+  case find_edge(
+        Edge#edge_record.from,
+        Edge#edge_record.to,
+        Retain) of
+    null -> [Edge];
+    _ -> []
+  end ++ remove_duplicate_edge(Retain).
+
+-spec match_job_and_people(job_record, people_record) -> true | false.
+match_job_and_people(Job, People) ->
+  NeedSkills = Job#job_record.need_skills,
+  HasSkills = People#people_record.skills,
+  in_skills(NeedSkills, HasSkills).
+
+in_skills([], _) -> true;
+in_skills(NeedSkills, HasSkills) ->
+  [NeedSkill | NeedSkillsRetain] =  NeedSkills,
+  case lists:any(fun(Skill) -> NeedSkill == Skill end, HasSkills) of
+    false -> false;
+    true -> 
+      in_skills(NeedSkillsRetain, HasSkills)
+  end.
+```
+
+</div></details>
+
+

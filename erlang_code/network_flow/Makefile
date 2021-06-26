@@ -9,7 +9,8 @@
 ERL = erl -boot start_clean
 
 MODS = ford_fullkerson \
-  ford_fullkerson_with_breadth_first
+  ford_fullkerson_with_breadth_first \
+  biporate_matching
 
 all: compile
 

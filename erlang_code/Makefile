@@ -16,11 +16,14 @@ subdirs:
 	cd sort; make; cd ..
 	cd search; make; cd ..
 	cd graph; make; cd ..
-	cd route_search; make
+	cd route_search; make; cd ..
+	cd network_flow; make
 
 clean:
 	rm -fr *.beam erl_crash.dump
 	cd sort; make clean; cd ..
 	cd search; make clean; cd ..
 	cd graph; make clean; cd ..
-	cd route_search; make clean
+	cd route_search; make clean; cd ..
+	cd network_flow; make clean
+
