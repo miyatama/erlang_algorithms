@@ -8,7 +8,8 @@
 
 ERL = erl -boot start_clean
 
-MODS = ford_fullkerson
+MODS = ford_fullkerson \
+  ford_fullkerson_with_breadth_first
 
 all: compile
 

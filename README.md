@@ -1822,3 +1822,194 @@ reflect_delta(Edges, ArgPaths, Delta, Vertex) ->
 ```
 
 </div></details>
+
+
+## Ford-Fullkerson / breadth first
+
+stack to queue
+
+[source code](./erlang_code/netowrk_flow/ford_fullkerson_with_breadth_first.erl)
+
+<details><summary>compute logic</summary><div>
+
+```erlang
+-spec generate_argumenting_path(list(edge_record)) -> list(argumenting_path_record).
+generate_argumenting_path(Graph) ->
+  Queue = [source],
+  ArgPaths = [
+    #argumenting_path_record{
+      vertex=source,
+      previous=null,
+      direction=none}],
+  generate_argumenting_path(Graph, Queue, ArgPaths).
+
+-spec generate_argumenting_path(
+    list(edge_record), 
+    list(atom()), 
+    list(argumenting_path_record)
+  ) -> list(argumenting_path_record).
+generate_argumenting_path(_, [], _) -> 
+  [];
+generate_argumenting_path(Edges, PathQueue, ArgPaths) -> 
+  {Vertex, PathQueueRetain} = remove_first_vertex_queue(PathQueue),
+  {ExistsArgumentingPath, PathQueue2, ArgPaths2} = 
+    generate_argumenting_path_forward(Edges, PathQueueRetain, ArgPaths, Vertex),
+  case ExistsArgumentingPath of
+    true -> 
+      ArgPaths2;
+    false -> 
+      {PathQueue3, ArgPaths3} = 
+        generate_argumenting_path_backward(
+          Edges, 
+          PathQueue2, 
+          ArgPaths2, 
+          Vertex),
+      generate_argumenting_path(Edges, PathQueue3, ArgPaths3)
+  end.
+
+-spec generate_argumenting_path_forward(
+    list(edge_record),
+    list(atom()), 
+    list(argumenting_path_record),
+    atom()) ->  
+  {
+    true | false,
+    list(atom()), 
+    list(argumenting_path_record)
+  }.
+generate_argumenting_path_forward(Edges, PathQueue, ArgPaths, Vertex) ->
+  ForwardEdges = find_edge_forward(Vertex, Edges),
+  generate_argumenting_path_forward(Edges, PathQueue, ArgPaths, Vertex, ForwardEdges).
+
+-spec generate_argumenting_path_forward(
+    list(edge_record),
+    list(atom()), 
+    list(argumenting_path_record),
+    atom(),
+    list(edge_record)) -> 
+  {
+    true | false,
+    list(atom()), 
+    list(argumenting_path_record)
+  }.
+generate_argumenting_path_forward(_, PathQueue, ArgPaths, _, []) -> 
+  {false, PathQueue, ArgPaths};
+generate_argumenting_path_forward(Edges, PathQueue, ArgPaths, Vertex, ForwardEdges) -> 
+  [ForwardEdge | ForwardEdgesRetain] = ForwardEdges,
+  Exists = exists_argumenting_path(
+    ForwardEdge#edge_record.to, 
+    ArgPaths),
+  FullTank = (ForwardEdge#edge_record.capacity > ForwardEdge#edge_record.flow),
+  ArrivalSink = (ForwardEdge#edge_record.to  ==  sink),
+  ?OUTPUT_DEBUG(
+     "generate_argumenting_path_forward/5 - ~w in arg path exists: ~w, full tank: ~w, arrival sink: ~w",
+    [ForwardEdge#edge_record.to, Exists, FullTank , ArrivalSink ]),
+  {Return, PathQueue2, ArgPaths2} = case {Exists, FullTank, ArrivalSink} of
+    % not arrival,not limit and not arrival sink
+    {false, true, false} -> 
+      ?OUTPUT_DEBUG("generate_argumenting_path_forward - ~w", [not_arrival_sink]),
+      NewArgPaths = add_argumenting_path(
+        ForwardEdge#edge_record.to, 
+        Vertex, 
+        forward, 
+        ArgPaths),
+      NewPathQueue = insert_vertex_queue(
+        ForwardEdge#edge_record.to, 
+        PathQueue),
+      {false, NewPathQueue, NewArgPaths};
+    % not arrival,not limit and arrival sink
+    {false, true, true} ->
+      ?OUTPUT_DEBUG("generate_argumenting_path_forward - ~w", [arrival_sink]),
+      NewArgPaths = add_argumenting_path(
+        ForwardEdge#edge_record.to, 
+        Vertex, 
+        forward, 
+        ArgPaths),
+      {true, PathQueue, NewArgPaths};
+    _ -> 
+      ?OUTPUT_DEBUG("generate_argumenting_path_forward - ~w", [any]),
+      {false, PathQueue, ArgPaths}
+  end,
+  case Return of
+    true ->
+      {true, PathQueue2, ArgPaths2};
+    false ->
+      generate_argumenting_path_forward(
+        Edges, 
+        PathQueue2, 
+        ArgPaths2, 
+        Vertex, 
+        ForwardEdgesRetain)
+  end.
+
+-spec generate_argumenting_path_backward(
+    list(edge_record),
+    list(atom()),
+    list(argumenting_path_record),
+    atom() 
+  ) -> {list(atom()), list(argumenting_path_record)}.
+generate_argumenting_path_backward(Edges, PathQueue, ArgPaths, Vertex) ->
+  ?OUTPUT_DEBUG(
+    "generate_argumenting_path_backward/4 - vertex: ~w",
+    [Vertex]),
+  BackwardEdges = find_edge_backward(Vertex, Edges),
+  ?OUTPUT_DEBUG(
+    "generate_argumenting_path_backward/4 - edges: ~w",
+    [BackwardEdges]),
+  generate_argumenting_path_backward(Edges, PathQueue, ArgPaths, Vertex, BackwardEdges).
+
+-spec generate_argumenting_path_backward(
+    list(edge_record),
+    list(atom()),
+    list(argumenting_path_record),
+    atom(),
+    list(edge_record)
+  ) -> {list(atom()), list(argumenting_path_record)}.
+generate_argumenting_path_backward(_, PathQueue, ArgPaths, _, []) ->
+  {PathQueue, ArgPaths};
+generate_argumenting_path_backward(Edges, PathQueue, ArgPaths, Vertex, BackwardEdges) ->
+  [BackwardEdge | BackwardEdgesRetain] = BackwardEdges,
+  ExistsArgPath = exists_argumenting_path(
+    BackwardEdge#edge_record.from,
+    ArgPaths),
+  ExistsFlow = BackwardEdge#edge_record.flow > 0,
+  ?OUTPUT_DEBUG(
+    "generate_argumenting_path_backward/5 - exists arg path: ~w, exists flow: ~w",
+    [ExistsArgPath, ExistsFlow]),
+  {PathQueue2, ArgPaths2} = case {ExistsArgPath, ExistsFlow} of
+    % not arrival and exists flow
+    {false, true} ->
+      NewArgPaths = add_argumenting_path(
+        BackwardEdge#edge_record.from,
+        Vertex,
+        backward,
+        ArgPaths),
+      NewPathQueue = insert_vertex_queue(
+        Vertex, 
+        PathQueue),
+      {NewPathQueue, NewArgPaths};
+    _ ->
+      {PathQueue, ArgPaths}
+  end,
+  generate_argumenting_path_backward(
+    Edges, 
+    PathQueue2, 
+    ArgPaths2, 
+    Vertex, 
+    BackwardEdgesRetain).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Vertex Queue functions
+-spec insert_vertex_queue(atom(), list(atom())) -> 
+  list(atom()).
+insert_vertex_queue(Vertex, Queue) ->
+  [Vertex] ++ Queue.
+
+-spec remove_first_vertex_queue(list(atom())) -> 
+  {atom(), list(atom())}.
+remove_first_vertex_queue(Queue) ->
+  [Head | Retain] = Queue,
+  {Head, Retain}.
+```
+
+</div></details>
