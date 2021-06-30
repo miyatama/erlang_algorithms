@@ -1602,7 +1602,7 @@ search(GameState, OpenGameStateList, ClosedGameStateList, EvaluatorType, Moves) 
 ```mermaid
 graph TB;
 
-alg1[General-purpose linear programming]-->alg2[Minimum flow]
+alg1[General-purpose linear programming]-->alg2[Minimum cost]
 alg3[Transhipment problem]-->alg2
 alg2-->alg4[Maximum flow]
 alg4-->alg5[Bipartite matching]
@@ -2140,3 +2140,216 @@ in_skills(NeedSkills, HasSkills) ->
 </div></details>
 
 
+## minimum cost
+
+add cost to ford-fullkerson.
+
+```math
+cost = d(u, v)
+```
+
+purpose is miinmum cost
+
+```math
+\sum(f(u, v)d(u, v))
+```
+
+[source code](./erlang_code/network_flow/minimum_cost.erl)
+
+<details><summary>logic</summary><div>
+
+```erlang
+generate_argumenting_path(
+    Edges, PriorityQueue, Dists, Inqueue, 
+    ArgPaths, PriorityQueueRec, Vertexes) ->
+  [NextVertex | VertexesRetain] = Vertexes,
+
+  % forward
+  {PriorityQueue2, 
+    Dists2, 
+    Inqueue2, 
+    ArgPaths2} = 
+    generate_argumenting_path_forward(
+      Edges, 
+      PriorityQueue, 
+      Dists, 
+      Inqueue, 
+      ArgPaths, 
+      PriorityQueueRec#priority_queue_record.vertex,
+      NextVertex),
+
+  % backward
+  {PriorityQueue3, 
+  Dists3, 
+  Inqueue3, 
+  ArgPaths3} = 
+    generate_argumenting_path_backward(
+      Edges, 
+      PriorityQueue2, 
+      Dists2, 
+      Inqueue2, 
+      ArgPaths2, 
+      PriorityQueueRec#priority_queue_record.vertex,
+      NextVertex),
+  generate_argumenting_path(
+    Edges, 
+    PriorityQueue3, 
+    Dists3, 
+    Inqueue3, 
+    ArgPaths3,
+    PriorityQueueRec,
+    VertexesRetain).
+
+-spec generate_argumenting_path_forward(
+    list(edge_record),
+    list(priority_queue_record),
+    map(),
+    list(inqueue_record),
+    list(argumenting_path_record),
+    atom(),
+    atom()
+  ) ->  {
+        list(priority_queue_record),
+        map(),
+        list(inqueue_record),
+        list(argumenting_path_record)}.
+generate_argumenting_path_forward(
+      Edges, PriorityQueue, Dists, 
+      Inqueue, ArgPaths, CurrentVertex, NextVertex) ->
+  ?OUTPUT_DEBUG("generate_argumenting_path_forward/7 - ~w", [start]),
+  Edge = find_edge(CurrentVertex, NextVertex, Edges),
+  {ExistsEdge, NewDist, ExistsMargin} = case Edge of
+      null -> 
+        {false, -1, false};
+      _ -> 
+        Dist = maps:get(CurrentVertex, Dists) + Edge#edge_record.cost,
+        Margin = (Edge#edge_record.flow < Edge#edge_record.capacity),
+        {true, Dist, Margin}
+    end,
+  NextDist = maps:get(NextVertex, Dists),
+  UpdateDist = (NewDist >= 0) and (NewDist < NextDist),
+  Arrival = get_inqueue(NextVertex, Inqueue),
+  ?OUTPUT_DEBUG(
+    "generate_argumenting_path_forward/7 - exists edge: ~w, update dist: ~w, arrival: ~w",
+    [ExistsEdge, UpdateDist, Arrival]),
+  case {ExistsEdge, ExistsMargin, UpdateDist, Arrival} of
+    {true, true, true, true} ->
+      % new argumenting path
+      NewArgPaths = add_argumenting_path(
+        NextVertex, 
+        CurrentVertex,
+        forward,
+        ArgPaths),
+      % new dists
+      NewDists = maps:put(
+        NextVertex,
+        NewDist,
+        Dists),
+      % new priority queue
+      NewPriorityQueue = decrease_priority_queue(NextVertex, NewDist, PriorityQueue),
+      {
+        NewPriorityQueue,
+        NewDists,
+        Inqueue,
+        NewArgPaths
+      };
+    {true, true, true, false} ->
+      % new argumenting path
+      NewArgPaths = add_argumenting_path(
+        NextVertex, 
+        CurrentVertex,
+        forward,
+        ArgPaths),
+      % new dists
+      NewDists = maps:put(
+        NextVertex,
+        NewDist,
+        Dists),
+      % new priority queue
+      NewPriorityQueue = insert_priority_queue(NextVertex, NewDist, PriorityQueue),
+      % new inqueue
+      NewInqueue = set_inqueue(NextVertex, true, Inqueue),
+      {
+        NewPriorityQueue,
+        NewDists,
+        NewInqueue,
+        NewArgPaths
+      };
+    _ ->
+      % no change
+      {
+        PriorityQueue, 
+        Dists, 
+        Inqueue, 
+        ArgPaths
+      }
+  end.
+
+  
+-spec generate_argumenting_path_backward(
+    list(edge_record),
+    list(priority_queue_record),
+    map(),
+    list(inqueue_record),
+    list(argumenting_path_record),
+    atom(),
+    atom()
+  ) ->  {
+        list(priority_queue_record),
+        map(),
+        list(inqueue_record),
+        list(argumenting_path_record)}.
+generate_argumenting_path_backward(
+      Edges, PriorityQueue, Dists, 
+      Inqueue, ArgPaths, CurrentVertex, NextVertex) ->
+  ?OUTPUT_DEBUG("generate_argumenting_path_backward/7 - ~w", [start]),
+  Edge = find_edge(NextVertex, CurrentVertex, Edges),
+  {ExistsEdge, NewDist, ExistsFlow} = case Edge of
+      null -> {false, -1, false};
+      _ ->
+        Dist = maps:get(CurrentVertex, Dists) - Edge#edge_record.cost,
+        Retain = (Edge#edge_record.flow > 0),
+        {true, Dist, Retain}
+    end,
+  UpdateDist = (NewDist >= 0) and (NewDist < maps:get(NextVertex, Dists)),
+  Arrival = get_inqueue(NextVertex, Inqueue),
+  case {ExistsEdge, ExistsFlow, UpdateDist, Arrival} of
+    {true, true, true, true} ->
+      % new argmenting path
+      NewArgPaths = add_argumenting_path(NextVertex, CurrentVertex, backward, ArgPaths),
+      % new dists
+      NewDists = maps:put(NextVertex, NewDist, Dists),
+      % new primary queue
+      NewPriorityQueue = decrease_priority_queue(NextVertex, NewDist, PriorityQueue),
+      {
+        NewPriorityQueue,
+        NewDists,
+        Inqueue,
+        NewArgPaths
+      };
+    {true, true, true, false} ->
+      % new argmenting path
+      NewArgPaths = add_argumenting_path(NextVertex, CurrentVertex, backward, ArgPaths),
+      % new dists
+      NewDists = maps:put(NextVertex, NewDist, Dists),
+      % new primary queue
+      NewPriorityQueue = insert_priority_queue(NextVertex, NewDist, PriorityQueue),
+      % new inqueue
+      NewInqueue = set_inqueue(NextVertex, true, Inqueue),
+      {
+        NewPriorityQueue,
+        NewDists,
+        NewInqueue,
+        NewArgPaths
+      };
+    _ ->
+      {
+        PriorityQueue,
+        Dists,
+        Inqueue,
+        ArgPaths
+      }
+  end.
+```
+
+</div></details>
