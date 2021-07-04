@@ -2,15 +2,13 @@
 
 -export([test/0]).
 
-% from -> atom()
-% to -> atom()
-% flow -> integer()
-% capacity -> integer()
-% cost -> integer()
--record(edge_record, {from, to, flow, capacity, cost}).
+-import(ford_fullkerson, 
+  [process_argpath/2,
+    equal_edges/2,
+    find_edge/3,
+    add_argumenting_path/4]).
 
-% direction -> atom: forward | backward
--record(argumenting_path_record, {vertex, previous, direction}).
+-include("network_flow.hrl").
 
 -record(priority_queue_record, {vertex, dist}).
 
@@ -85,132 +83,27 @@ test(TestCase) ->
   ?OUTPUT_INFO(
     "test ~w",
     [TestCase]),
-  show_result(ResultGraph).
+  ExpectGraph = generate_expect_graph(TestCase),
+  show_result("test case ~w: ~w", TestCase, ExpectGraph, ResultGraph).
 
--spec compute(list(edge_record)) -> list(edge_record).
+-spec compute(list(edge)) -> list(edge).
 compute(Graph) -> 
   ArguPath = generate_argumenting_path(Graph),
   ?OUTPUT_DEBUG("compute/1 - arg paths: ~w", [ArguPath]),
   compute(Graph, ArguPath).
 
 
--spec compute(list(edge_record), list(argumenting_path_record)) -> list(edge_record).
+-spec compute(list(edge), list(argpath)) -> list(edge).
 compute(Graph, []) ->  
   ?OUTPUT_DEBUG("compute/2 - complete"),
   Graph;
 compute(Graph, ArgPaths) ->  
-  NewGraph = process_path(Graph, ArgPaths),
+  NewGraph = process_argpath(Graph, ArgPaths),
   compute(NewGraph).
 
--spec process_path(list(edge_record), list(argumenting_path_record)) -> list(edge_record).
-process_path(Edges, ArgPaths) ->
-  Vertex = sink,
-  Delta = calculate_delta(Edges, ArgPaths, Vertex, ?MAX_DELTA),
-  ?OUTPUT_DEBUG(
-    "process_path/2 - delta: ~w",
-    [Delta]),
-  reflect_delta(Edges, ArgPaths, Delta).
-
--spec calculate_delta(
-    list(edge_record), 
-    list(argumenting_path_record),
-    atom(),
-    integer()
-  ) -> integer().
-calculate_delta(_, _, source, Delta) -> Delta;
-calculate_delta(Edges, ArgPaths, Vertex, Delta) ->
-  ?OUTPUT_DEBUG(
-    "calculate_delta/4 - vertex: ~w",
-    [Vertex]),
-  ArgPath = find_argumenting_path(Vertex, ArgPaths),
-  {TryDelta, NextVertex}  = case ArgPath#argumenting_path_record.direction of
-    forward ->
-      ?OUTPUT_DEBUG(
-        "calculate_delta/4 - forward(vertex: ~w, previous: ~w)",
-        [
-          ArgPath#argumenting_path_record.vertex,
-          ArgPath#argumenting_path_record.previous
-        ]),
-      Edge = find_edge(
-        ArgPath#argumenting_path_record.previous,
-        ArgPath#argumenting_path_record.vertex,
-        Edges),
-      {
-        Edge#edge_record.capacity - Edge#edge_record.flow, 
-        Edge#edge_record.from
-      };
-    backward ->
-      ?OUTPUT_DEBUG(
-        "calculate_delta/4 - backward(vertex: ~w, previous: ~w)",
-        [
-          ArgPath#argumenting_path_record.vertex,
-          ArgPath#argumenting_path_record.previous
-        ]),
-      Edge = find_edge(
-        ArgPath#argumenting_path_record.vertex,
-        ArgPath#argumenting_path_record.previous,
-        Edges),
-      {
-        Edge#edge_record.flow,
-        Edge#edge_record.to
-      }
-  end,
-  NewDelta = erlang:min(Delta, TryDelta),
-  ?OUTPUT_DEBUG(
-    "calculate_delta/4 - delta ~w , try delta: ~w",
-    [Delta, TryDelta]),
-  calculate_delta(Edges, ArgPaths, NextVertex, NewDelta).
-
--spec reflect_delta(
-    list(edge_record), 
-    list(argumenting_path_record), 
-    integer()
-  ) -> list(edge_record).
-reflect_delta(Edges, ArgPaths, Delta) ->
-  Vertex = sink,
-  reflect_delta(Edges, ArgPaths, Delta, Vertex).
-
--spec reflect_delta(
-    list(edge_record), 
-    list(argumenting_path_record), 
-    integer(),
-    atom() 
-  ) -> list(edge_record).
-reflect_delta(Edges, _, _, source) -> Edges;
-reflect_delta(Edges, ArgPaths, Delta, Vertex) -> 
-  ?OUTPUT_DEBUG(
-     "reflect_delta/4 - edge length: ~w",
-     [length(Edges)]),
-  ?OUTPUT_DEBUG(
-     "reflect_delta/4 - vertex: ~w in ~w",
-     [Vertex, ArgPaths]),
-  ArgPath = find_argumenting_path(Vertex, ArgPaths),
-
-  ?OUTPUT_DEBUG(
-     "reflect_delta/4 - founded arg path: ~w",
-     [ArgPath]),
-
-  {Edges2, NextVertex} = case ArgPath#argumenting_path_record.direction of
-    forward ->
-      NewEdge = add_flow(
-        Edges, 
-        ArgPath#argumenting_path_record.previous, 
-        Vertex, 
-        Delta),
-      {NewEdge, ArgPath#argumenting_path_record.previous};
-    backward ->
-      NewEdge = sub_flow(
-        Edges, 
-        Vertex,
-        ArgPath#argumenting_path_record.previous,
-        Delta),
-      {NewEdge, ArgPath#argumenting_path_record.previous}
-  end,
-  reflect_delta(Edges2, ArgPaths, Delta, NextVertex).
-
 -spec generate_argumenting_path(
-    list(edge_record)
-  ) -> list(argumenting_path_record).
+    list(edge)
+  ) -> list(argpath).
 generate_argumenting_path(Edges) -> 
   PriorityQueue = [
     #priority_queue_record{vertex=source, dist=0}],
@@ -228,7 +121,7 @@ generate_argumenting_path(Edges) ->
 
 % 3: map() -> [{atom(), integer()}]
 -spec generate_argumenting_path(
-    list(edge_record),
+    list(edge),
     list(priority_queue_record),
     map(),
     list(inqueue_record),
@@ -334,29 +227,28 @@ generate_argumenting_path(
     VertexesRetain).
 
 -spec generate_argumenting_path_forward(
-    list(edge_record),
+    list(edge),
     list(priority_queue_record),
     map(),
     list(inqueue_record),
-    list(argumenting_path_record),
+    list(argpath),
     atom(),
     atom()
   ) ->  {
         list(priority_queue_record),
         map(),
         list(inqueue_record),
-        list(argumenting_path_record)}.
+        list(argpath)}.
 generate_argumenting_path_forward(
       Edges, PriorityQueue, Dists, 
       Inqueue, ArgPaths, CurrentVertex, NextVertex) ->
-  ?OUTPUT_DEBUG("generate_argumenting_path_forward/7 - ~w", [start]),
   Edge = find_edge(CurrentVertex, NextVertex, Edges),
   {ExistsEdge, NewDist, ExistsMargin} = case Edge of
       null -> 
         {false, -1, false};
       _ -> 
-        Dist = maps:get(CurrentVertex, Dists) + Edge#edge_record.cost,
-        Margin = (Edge#edge_record.flow < Edge#edge_record.capacity),
+        Dist = maps:get(CurrentVertex, Dists) + Edge#edge.cost,
+        Margin = (Edge#edge.flow < Edge#edge.capacity),
         {true, Dist, Margin}
     end,
   NextDist = maps:get(NextVertex, Dists),
@@ -417,31 +309,29 @@ generate_argumenting_path_forward(
         ArgPaths
       }
   end.
-
   
 -spec generate_argumenting_path_backward(
-    list(edge_record),
+    list(edge),
     list(priority_queue_record),
     map(),
     list(inqueue_record),
-    list(argumenting_path_record),
+    list(argpath),
     atom(),
     atom()
   ) ->  {
         list(priority_queue_record),
         map(),
         list(inqueue_record),
-        list(argumenting_path_record)}.
+        list(argpath)}.
 generate_argumenting_path_backward(
       Edges, PriorityQueue, Dists, 
       Inqueue, ArgPaths, CurrentVertex, NextVertex) ->
-  ?OUTPUT_DEBUG("generate_argumenting_path_backward/7 - ~w", [start]),
   Edge = find_edge(NextVertex, CurrentVertex, Edges),
   {ExistsEdge, NewDist, ExistsFlow} = case Edge of
       null -> {false, -1, false};
       _ ->
-        Dist = maps:get(CurrentVertex, Dists) - Edge#edge_record.cost,
-        Retain = (Edge#edge_record.flow > 0),
+        Dist = maps:get(CurrentVertex, Dists) - Edge#edge.cost,
+        Retain = (Edge#edge.flow > 0),
         {true, Dist, Retain}
     end,
   UpdateDist = (NewDist >= 0) and (NewDist < maps:get(NextVertex, Dists)),
@@ -486,137 +376,37 @@ generate_argumenting_path_backward(
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % graph functions
--spec find_edge(
-    atom(), 
-    atom(), 
-    list(edge_record)
-  ) -> {edge_record | null}.
-find_edge(_, _, []) -> null;
-find_edge(FromVertex, ToVertex, Edges) -> 
-  ?OUTPUT_DEBUG("find_edge/3 - from: ~w, to: ~w", [FromVertex, ToVertex]),
-  [Head | Retain] = Edges,
-  case {Head#edge_record.from, Head#edge_record.to} of
-    {FromVertex, ToVertex} -> Head;
-    _ ->
-     find_edge(FromVertex, ToVertex, Retain)
-  end.
-
--spec remove_edge(
-    atom(), 
-    atom(), 
-    list(edge_record)
-  ) -> list(edge_record).
-remove_edge(_, _, []) -> [];
-remove_edge(FromVertex, ToVertex, Edges) -> 
-  [Head | Retain] = Edges,
-  case {Head#edge_record.from, Head#edge_record.to} of
-    {FromVertex, ToVertex} -> Retain;
-    _ ->
-     [Head] ++ remove_edge(FromVertex, ToVertex, Retain)
-  end.
-
--spec add_flow(
-    list(edge_record),
-    atom(), 
-    atom(),
-    integer()
-  ) -> list(edge_record).
-add_flow(Edges, FromVertex, ToVertex, Delta) ->
-  ?OUTPUT_DEBUG(
-    "add_flow/4 - from: ~w, to: ~w, delta: ~w",
-    [FromVertex, ToVertex, Delta]),
-  Edge = find_edge(FromVertex, ToVertex, Edges), 
-  #edge_record{flow=Flow} = Edge, 
-  [
-   Edge#edge_record{flow=Flow + Delta}
-  ] ++ remove_edge(FromVertex, ToVertex, Edges).
-
--spec sub_flow(
-    list(edge_record),
-    atom(), 
-    atom(),
-    integer()
-  ) -> list(edge_record).
-sub_flow(Edges, FromVertex, ToVertex, Delta) ->
-  ?OUTPUT_DEBUG(
-    "sub_flow/4 - from: ~w, to: ~w, delta: ~w",
-    [FromVertex, ToVertex, Delta]),
-  Edge = find_edge(FromVertex, ToVertex, Edges), 
-  #edge_record{flow=Flow} = Edge, 
-  [
-   Edge#edge_record{flow=Flow - Delta}
-  ] ++ remove_edge(FromVertex, ToVertex, Edges).
-
 generate_vertex_from_edges(Edges) ->
   generate_vertex_from_edges(Edges, []).
 generate_vertex_from_edges([], ResultVertexes) -> ResultVertexes;
 generate_vertex_from_edges(Edges, ResultVertexes) ->
   [Edge | Retain] = Edges,
-  Result2 = case lists:any(fun(Vertex) -> Vertex == Edge#edge_record.from end, ResultVertexes) of
+  Result2 = case lists:any(fun(Vertex) -> Vertex == Edge#edge.from end, ResultVertexes) of
     true -> ResultVertexes;
-    false -> [Edge#edge_record.from] ++ ResultVertexes
+    false -> [Edge#edge.from] ++ ResultVertexes
   end,
-  Result3 = case lists:any(fun(Vertex) -> Vertex == Edge#edge_record.to end, Result2) of
+  Result3 = case lists:any(fun(Vertex) -> Vertex == Edge#edge.to end, Result2) of
     true -> Result2;
-    false -> [Edge#edge_record.to] ++ Result2
+    false -> [Edge#edge.to] ++ Result2
   end,
   generate_vertex_from_edges(Retain, Result3).
-  
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% argumenting path functions
--spec find_argumenting_path(
-  atom(), 
-  list(argumenting_path_record)) -> {argumenting_path_record | null}.
-find_argumenting_path(_, []) -> 
-  null;
-find_argumenting_path(Vertex, ArgPaths) ->
-  [ArgPath | Retain] = ArgPaths,
-  find_argumenting_path(
-    Vertex, 
-    ArgPath#argumenting_path_record.vertex, 
-    ArgPath, 
-    Retain).
-
--spec find_argumenting_path(
-  atom(), 
-  atom(), 
-  argumenting_path_record,
-  list(argumenting_path_record)) -> {argumenting_path_record | null}.
-find_argumenting_path(Vertex, Vertex, ArgPath, _) -> ArgPath;
-find_argumenting_path(Vertex, _, _, ArgPaths) -> 
-  find_argumenting_path(Vertex, ArgPaths).
-
--spec add_argumenting_path(
-  atom(),
-  atom(),
-  forward | backward,
-  list(argumenting_path_record)
-  ) -> list(argumenting_path_record).
-add_argumenting_path(Vertex, PreviousVertex, Direction, ArgPaths) ->
-  ArgPaths ++ [
-    #argumenting_path_record{
-      vertex=Vertex, 
-      previous=PreviousVertex,
-      direction=Direction}
-  ].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % dists function
 % return map() -> {atom(), integer()}
--spec generate_initial_dist(list(edge_record)) -> map().
+-spec generate_initial_dist(list(edge)) -> map().
 generate_initial_dist(Edges) -> 
   Map = maps:new(),
   generate_initial_dist(Edges, Map).
 
 -spec generate_initial_dist(
-    list(edge_record),
+    list(edge),
     map()
   ) -> map().
 generate_initial_dist([], Map) ->  Map;
 generate_initial_dist(Edges, Map) -> 
   [Edge | Retain] = Edges,
-  #edge_record{from=FromVertex, to=ToVertex} = Edge,
+  #edge{from=FromVertex, to=ToVertex} = Edge,
   Map2 = case maps:is_key(FromVertex, Map) of
     true -> Map;
     _ -> 
@@ -631,19 +421,19 @@ generate_initial_dist(Edges, Map) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % inqueue function
--spec generate_initial_inqueue(list(edge_record)) -> list(inqueue_record).
+-spec generate_initial_inqueue(list(edge)) -> list(inqueue_record).
 generate_initial_inqueue(Edges) ->
   List = [],
   generate_initial_inqueue(Edges, List).
 
 -spec generate_initial_inqueue(
-    list(edge_record),
+    list(edge),
     list(inqueue_record)
   ) -> list(inqueue_record).
 generate_initial_inqueue([], List) ->  List;
 generate_initial_inqueue(Edges, List) -> 
   [Edge | Retain] = Edges,
-  #edge_record{from=FromVertex, to=ToVertex} = Edge,
+  #edge{from=FromVertex, to=ToVertex} = Edge,
   List2 = case exists_inqueue(FromVertex, List) of
     true -> List;
     _ -> 
@@ -747,60 +537,106 @@ insert_priority_queue(Vertex, Dist, PriorityQueue) ->
     }
   ] ++ PriorityQueue.
 
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% utility functions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% test function
 generate_initial_graph(1) ->
   [
-   #edge_record{from=source, to=v1, flow=0, capacity=10, cost=1},
-   #edge_record{from=v1, to=sink, flow=0, capacity=10, cost=1}
+   #edge{from=source, to=v1, flow=0, capacity=10, cost=1},
+   #edge{from=v1, to=sink, flow=0, capacity=10, cost=1}
   ];
 
 generate_initial_graph(2) ->
   [
-   #edge_record{from=source, to=v1, flow=0, capacity=5, cost=1},
-   #edge_record{from=source, to=v2, flow=0, capacity=5, cost=1},
-   #edge_record{from=v1, to=sink, flow=0, capacity=10, cost=1},
-   #edge_record{from=v2, to=v1, flow=0, capacity=5, cost=1}
+   #edge{from=source, to=v1, flow=0, capacity=5, cost=1},
+   #edge{from=source, to=v2, flow=0, capacity=5, cost=1},
+   #edge{from=v1, to=sink, flow=0, capacity=10, cost=1},
+   #edge{from=v2, to=v1, flow=0, capacity=5, cost=1}
   ];
 
 generate_initial_graph(3) ->
   [
-   #edge_record{from=source, to=v1, flow=0, capacity=5, cost=1},
-   #edge_record{from=source, to=v2, flow=0, capacity=5, cost=1},
-   #edge_record{from=v1, to=sink, flow=0, capacity=10, cost=1},
-   #edge_record{from=v2, to=v1, flow=0, capacity=3, cost=1}
+   #edge{from=source, to=v1, flow=0, capacity=10, cost=30},
+   #edge{from=source, to=v2, flow=0, capacity=5, cost=11},
+   #edge{from=v1, to=sink, flow=0, capacity=10, cost=1},
+   #edge{from=v2, to=v1, flow=0, capacity=3, cost=1}
   ];
 
 generate_initial_graph(4) ->
   [
-   #edge_record{from=source, to=v1, flow=0, capacity=10, cost=5},
-   #edge_record{from=source, to=v2, flow=0, capacity=5, cost=1},
-   #edge_record{from=source, to=v3, flow=0, capacity=4, cost=1},
-   #edge_record{from=v1, to=v4, flow=0, capacity=5, cost=5},
-   #edge_record{from=v1, to=v2, flow=0, capacity=3, cost=5},
-   #edge_record{from=v2, to=v4, flow=0, capacity=2, cost=1},
-   #edge_record{from=v2, to=v3, flow=0, capacity=5, cost=1},
-   #edge_record{from=v3, to=v5, flow=0, capacity=8, cost=1},
-   #edge_record{from=v4, to=sink, flow=0, capacity=7, cost=1},
-   #edge_record{from=v5, to=sink, flow=0, capacity=11, cost=1}
+   #edge{from=source, to=v1, flow=0, capacity=10, cost=5},
+   #edge{from=source, to=v2, flow=0, capacity=5, cost=1},
+   #edge{from=source, to=v3, flow=0, capacity=4, cost=1},
+   #edge{from=v1, to=v4, flow=0, capacity=5, cost=5},
+   #edge{from=v1, to=v2, flow=0, capacity=10, cost=5},
+   #edge{from=v2, to=v4, flow=0, capacity=2, cost=1},
+   #edge{from=v2, to=v3, flow=0, capacity=10, cost=1},
+   #edge{from=v3, to=v5, flow=0, capacity=11, cost=1},
+   #edge{from=v4, to=sink, flow=0, capacity=7, cost=1},
+   #edge{from=v5, to=sink, flow=0, capacity=11, cost=1}
   ];
 
 generate_initial_graph(5) ->
   [
-   #edge_record{from=source, to=v1, flow=0, capacity=5, cost=5},
-   #edge_record{from=source, to=v2, flow=0, capacity=5, cost=3},
-   #edge_record{from=source, to=v3, flow=0, capacity=5, cost=1},
-   #edge_record{from=v1, to=v4, flow=0, capacity=5, cost=5},
-   #edge_record{from=v2, to=v4, flow=0, capacity=5, cost=1},
-   #edge_record{from=v3, to=v4, flow=0, capacity=5, cost=1},
-   #edge_record{from=v4, to=sink, flow=0, capacity=10, cost=1}
+   #edge{from=source, to=v1, flow=0, capacity=5, cost=4},
+   #edge{from=source, to=v2, flow=0, capacity=5, cost=2},
+   #edge{from=source, to=v3, flow=0, capacity=5, cost=1},
+   #edge{from=v1, to=v4, flow=0, capacity=5, cost=3},
+   #edge{from=v2, to=v4, flow=0, capacity=5, cost=2},
+   #edge{from=v3, to=v4, flow=0, capacity=5, cost=1},
+   #edge{from=v4, to=sink, flow=0, capacity=11, cost=1}
   ];
-
 
 generate_initial_graph(_) ->
   [].
 
+generate_expect_graph(1) ->
+  [
+   #edge{from=source, to=v1, flow=10, capacity=10, cost=1},
+   #edge{from=v1, to=sink, flow=10, capacity=10, cost=1}
+  ];
+
+generate_expect_graph(2) ->
+  [
+   #edge{from=source, to=v1, flow=5, capacity=5, cost=1},
+   #edge{from=source, to=v2, flow=5, capacity=5, cost=1},
+   #edge{from=v1, to=sink, flow=10, capacity=10, cost=1},
+   #edge{from=v2, to=v1, flow=5, capacity=5, cost=1}
+  ];
+
+generate_expect_graph(3) ->
+  [
+   #edge{from=source, to=v1, flow=7, capacity=10, cost=30},
+   #edge{from=source, to=v2, flow=3, capacity=5, cost=11},
+   #edge{from=v1, to=sink, flow=10, capacity=10, cost=1},
+   #edge{from=v2, to=v1, flow=3, capacity=3, cost=1}
+  ];
+
+generate_expect_graph(4) ->
+  [
+   #edge{from=source, to=v1, flow=9, capacity=10, cost=5},
+   #edge{from=source, to=v2, flow=5, capacity=6, cost=1},
+   #edge{from=source, to=v3, flow=4, capacity=4, cost=1},
+   #edge{from=v1, to=v4, flow=5, capacity=5, cost=5},
+   #edge{from=v1, to=v2, flow=4, capacity=30, cost=5},
+   #edge{from=v2, to=v4, flow=2, capacity=2, cost=1},
+   #edge{from=v2, to=v3, flow=7, capacity=5, cost=1},
+   #edge{from=v3, to=v5, flow=11, capacity=30, cost=1},
+   #edge{from=v4, to=sink, flow=7, capacity=7, cost=1},
+   #edge{from=v5, to=sink, flow=11, capacity=11, cost=1}
+  ];
+
+generate_expect_graph(5) ->
+  [
+   #edge{from=source, to=v1, flow=1, capacity=5, cost=4},
+   #edge{from=source, to=v2, flow=5, capacity=5, cost=2},
+   #edge{from=source, to=v3, flow=5, capacity=5, cost=1},
+   #edge{from=v1, to=v4, flow=1, capacity=5, cost=3},
+   #edge{from=v2, to=v4, flow=5, capacity=5, cost=2},
+   #edge{from=v3, to=v4, flow=5, capacity=5, cost=1},
+   #edge{from=v4, to=sink, flow=11, capacity=11, cost=1}
+  ];
+
+generate_expect_graph(_) -> [].
 
 remove_vertexes([], Vertexes) -> Vertexes;
 remove_vertexes(RemoveVertexes, Vertexes) ->
@@ -808,10 +644,26 @@ remove_vertexes(RemoveVertexes, Vertexes) ->
   NewVertexes = lists:delete(RemoveVertex, Vertexes),
   remove_vertexes(Retain, NewVertexes).
 
-show_result([]) -> ok;
-show_result(Edges) ->
+show_result(Text, CaseNo ,Expect, Result) ->
+  case equal_edges(Expect, Result) of
+    true ->
+      ?OUTPUT_INFO(Text, [CaseNo, true]),
+      show_edges(Expect);
+    false ->
+      ?OUTPUT_ERROR(Text, [CaseNo, false]),
+      ?OUTPUT_ERROR("Expect:"),
+      show_edges(Expect),
+      ?OUTPUT_ERROR("Result"),
+      show_edges(Result)
+  end.
+
+show_edges([]) -> ok;
+show_edges(Edges) -> 
   [Edge | Retain] = Edges,
-  #edge_record{
+  show_edge(Edge),
+  show_edges(Retain).
+show_edge(Edge) ->
+  #edge{
     from=FromVertex,
     to=ToVertex,
     flow=Flow,
@@ -826,5 +678,4 @@ show_result(Edges) ->
      Capacity,
      Cost * Flow,
      Cost
-    ]),
-  show_result(Retain).
+    ]).
