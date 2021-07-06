@@ -2159,120 +2159,78 @@ purpose is miinmum cost
 <details><summary>logic</summary><div>
 
 ```erlang
-generate_argumenting_path(
-    Edges, PriorityQueue, Dists, Inqueue, 
-    ArgPaths, PriorityQueueRec, Vertexes) ->
+-spec generate_argumenting_path(
+      list(edge),
+    list(priority_queue_record),
+    map(),
+    list(argumenting_record),
+    atom(),
+    list(atom())
+  ) -> list(argumenting_record).
+generate_argumenting_path(Edges, PriorityQueue, Dists, ArgPaths, _, []) ->
+  generate_argumenting_path( Edges, PriorityQueue, Dists, ArgPaths);
+generate_argumenting_path(Edges, PriorityQueue, Dists, 
+    ArgPaths, CurrentVertex, Vertexes) ->
   [NextVertex | VertexesRetain] = Vertexes,
 
+  ?OUTPUT_DEBUG("generate_argumenting_path/6 - next vertex: ~w", [NextVertex]),
   % forward
   {PriorityQueue2, 
     Dists2, 
-    Inqueue2, 
     ArgPaths2} = 
-    generate_argumenting_path_forward(
-      Edges, 
-      PriorityQueue, 
-      Dists, 
-      Inqueue, 
-      ArgPaths, 
-      PriorityQueueRec#priority_queue_record.vertex,
-      NextVertex),
-
+    generate_argumenting_path_forward(Edges, PriorityQueue, Dists, 
+      ArgPaths, CurrentVertex,NextVertex),
+  ?OUTPUT_DEBUG("generate_argumenting_path/6 - ~w", [after_forward]),
+  show_dists(Dists2),
   % backward
   {PriorityQueue3, 
   Dists3, 
-  Inqueue3, 
   ArgPaths3} = 
-    generate_argumenting_path_backward(
-      Edges, 
-      PriorityQueue2, 
-      Dists2, 
-      Inqueue2, 
-      ArgPaths2, 
-      PriorityQueueRec#priority_queue_record.vertex,
-      NextVertex),
-  generate_argumenting_path(
-    Edges, 
-    PriorityQueue3, 
-    Dists3, 
-    Inqueue3, 
-    ArgPaths3,
-    PriorityQueueRec,
-    VertexesRetain).
+    generate_argumenting_path_backward(Edges, PriorityQueue2, Dists2, 
+      ArgPaths2, CurrentVertex, NextVertex),
+  ?OUTPUT_DEBUG("generate_argumenting_path/6 - ~w", [after_backward]),
+  show_dists(Dists3),
+  generate_argumenting_path(Edges, PriorityQueue3, Dists3, 
+    ArgPaths3,CurrentVertex,VertexesRetain).
 
 -spec generate_argumenting_path_forward(
-    list(edge_record),
+    list(edge),
     list(priority_queue_record),
     map(),
-    list(inqueue_record),
-    list(argumenting_path_record),
+    list(argpath),
     atom(),
     atom()
   ) ->  {
         list(priority_queue_record),
         map(),
-        list(inqueue_record),
-        list(argumenting_path_record)}.
+        list(argpath)}.
 generate_argumenting_path_forward(
       Edges, PriorityQueue, Dists, 
-      Inqueue, ArgPaths, CurrentVertex, NextVertex) ->
-  ?OUTPUT_DEBUG("generate_argumenting_path_forward/7 - ~w", [start]),
+      ArgPaths, CurrentVertex, NextVertex) ->
   Edge = find_edge(CurrentVertex, NextVertex, Edges),
-  {ExistsEdge, NewDist, ExistsMargin} = case Edge of
+  {ExistsEdge, NewDist, NotFull} = case Edge of
       null -> 
         {false, -1, false};
       _ -> 
-        Dist = maps:get(CurrentVertex, Dists) + Edge#edge_record.cost,
-        Margin = (Edge#edge_record.flow < Edge#edge_record.capacity),
-        {true, Dist, Margin}
+        {
+          true,
+          maps:get(CurrentVertex, Dists) + Edge#edge.cost, 
+          (Edge#edge.flow < Edge#edge.capacity)
+        }
     end,
   NextDist = maps:get(NextVertex, Dists),
   UpdateDist = (NewDist >= 0) and (NewDist < NextDist),
-  Arrival = get_inqueue(NextVertex, Inqueue),
-  ?OUTPUT_DEBUG(
-    "generate_argumenting_path_forward/7 - exists edge: ~w, update dist: ~w, arrival: ~w",
-    [ExistsEdge, UpdateDist, Arrival]),
-  case {ExistsEdge, ExistsMargin, UpdateDist, Arrival} of
-    {true, true, true, true} ->
+  case {ExistsEdge, NotFull, UpdateDist} of
+    {true, true, true} ->
       % new argumenting path
-      NewArgPaths = add_argumenting_path(
-        NextVertex, 
-        CurrentVertex,
-        forward,
-        ArgPaths),
+      NewArgPaths = add_argumenting_path(NextVertex, CurrentVertex,forward, ArgPaths),
       % new dists
-      NewDists = maps:put(
-        NextVertex,
-        NewDist,
-        Dists),
-      % new priority queue
-      NewPriorityQueue = decrease_priority_queue(NextVertex, NewDist, PriorityQueue),
-      {
-        NewPriorityQueue,
-        NewDists,
-        Inqueue,
-        NewArgPaths
-      };
-    {true, true, true, false} ->
-      % new argumenting path
-      NewArgPaths = add_argumenting_path(
-        NextVertex, 
-        CurrentVertex,
-        forward,
-        ArgPaths),
-      % new dists
-      NewDists = maps:put(
-        NextVertex,
-        NewDist,
-        Dists),
+      NewDists = maps:put(NextVertex, NewDist, Dists),
       % new priority queue
       NewPriorityQueue = insert_priority_queue(NextVertex, NewDist, PriorityQueue),
-      % new inqueue
-      NewInqueue = set_inqueue(NextVertex, true, Inqueue),
       {
         NewPriorityQueue,
         NewDists,
-        NewInqueue,
         NewArgPaths
       };
     _ ->
@@ -2280,73 +2238,53 @@ generate_argumenting_path_forward(
       {
         PriorityQueue, 
         Dists, 
-        Inqueue, 
         ArgPaths
       }
   end.
-
   
 -spec generate_argumenting_path_backward(
-    list(edge_record),
+    list(edge),
     list(priority_queue_record),
     map(),
-    list(inqueue_record),
-    list(argumenting_path_record),
+    list(argpath),
     atom(),
     atom()
   ) ->  {
         list(priority_queue_record),
         map(),
         list(inqueue_record),
-        list(argumenting_path_record)}.
+        list(argpath)}.
 generate_argumenting_path_backward(
       Edges, PriorityQueue, Dists, 
-      Inqueue, ArgPaths, CurrentVertex, NextVertex) ->
-  ?OUTPUT_DEBUG("generate_argumenting_path_backward/7 - ~w", [start]),
+      ArgPaths, CurrentVertex, NextVertex) ->
   Edge = find_edge(NextVertex, CurrentVertex, Edges),
-  {ExistsEdge, NewDist, ExistsFlow} = case Edge of
+  {ExistsEdge, NewDist, NonEmpty} = case Edge of
       null -> {false, -1, false};
       _ ->
-        Dist = maps:get(CurrentVertex, Dists) - Edge#edge_record.cost,
-        Retain = (Edge#edge_record.flow > 0),
-        {true, Dist, Retain}
+        {
+          true, 
+          maps:get(CurrentVertex, Dists) - Edge#edge.cost, 
+          (Edge#edge.flow > 0)
+        }
     end,
   UpdateDist = (NewDist >= 0) and (NewDist < maps:get(NextVertex, Dists)),
-  Arrival = get_inqueue(NextVertex, Inqueue),
-  case {ExistsEdge, ExistsFlow, UpdateDist, Arrival} of
-    {true, true, true, true} ->
-      % new argmenting path
-      NewArgPaths = add_argumenting_path(NextVertex, CurrentVertex, backward, ArgPaths),
-      % new dists
-      NewDists = maps:put(NextVertex, NewDist, Dists),
-      % new primary queue
-      NewPriorityQueue = decrease_priority_queue(NextVertex, NewDist, PriorityQueue),
-      {
-        NewPriorityQueue,
-        NewDists,
-        Inqueue,
-        NewArgPaths
-      };
-    {true, true, true, false} ->
+  case {ExistsEdge, NonEmpty, UpdateDist} of
+    {true, true, true} ->
       % new argmenting path
       NewArgPaths = add_argumenting_path(NextVertex, CurrentVertex, backward, ArgPaths),
       % new dists
       NewDists = maps:put(NextVertex, NewDist, Dists),
       % new primary queue
       NewPriorityQueue = insert_priority_queue(NextVertex, NewDist, PriorityQueue),
-      % new inqueue
-      NewInqueue = set_inqueue(NextVertex, true, Inqueue),
       {
         NewPriorityQueue,
         NewDists,
-        NewInqueue,
         NewArgPaths
       };
     _ ->
       {
         PriorityQueue,
         Dists,
-        Inqueue,
         ArgPaths
       }
   end.

@@ -117,18 +117,10 @@ compute(Graph, ArgPaths) ->
 calculate_delta(_, _, source, Delta) -> Delta;
 calculate_delta(Edges, ArgPaths, Vertex, Delta) ->
   ArgPath = find_argumenting_path(Vertex, ArgPaths),
-  Edge = case ArgPath#argpath.direction of
-    forward ->
-      find_edge(
+  Edge = find_edge(
         ArgPath#argpath.previous,
         ArgPath#argpath.vertex,
-        Edges);
-    backward ->
-      find_edge(
-        ArgPath#argpath.vertex,
-        ArgPath#argpath.previous,
-        Edges)
-  end,
+        Edges),
   TryDelta = case {Edge, ArgPath#argpath.direction} of
     {null, _} ->
       ?OUTPUT_ERROR(
@@ -163,8 +155,8 @@ reflect_delta(Edges, ArgPaths, Delta, Vertex) ->
     backward ->
       NewEdge = sub_flow(
         Edges, 
-        Vertex,
         ArgPath#argpath.previous,
+        Vertex,
         Delta),
       {NewEdge, ArgPath#argpath.previous}
   end,
@@ -497,6 +489,19 @@ find_argumenting_path(Vertex, Vertex, ArgPath, _) -> ArgPath;
 find_argumenting_path(Vertex, _, _, ArgPaths) -> 
   find_argumenting_path(Vertex, ArgPaths).
 
+-spec remove_argumenting_path(
+  atom(),
+  list(argpath)) -> list(argpath).
+remove_argumenting_path(_, []) -> [];
+remove_argumenting_path(Vertex, ArgPaths) ->
+  [ArgPath | Retain] = ArgPaths,
+  case ArgPath#argpath.vertex of
+    Vertex ->
+      Retain;
+    _ ->
+      [ArgPath] ++ remove_argumenting_path(Vertex, Retain)
+  end.
+
 -spec add_argumenting_path(
   atom(),
   atom(),
@@ -504,12 +509,21 @@ find_argumenting_path(Vertex, _, _, ArgPaths) ->
   list(argpath)
   ) -> list(argpath).
 add_argumenting_path(Vertex, PreviousVertex, Direction, ArgPaths) ->
-  ArgPaths ++ [
-    #argpath{
-      vertex=Vertex, 
-      previous=PreviousVertex,
-      direction=Direction}
-  ].
+  case find_argumenting_path(Vertex, ArgPaths) of
+    null ->
+      [
+        #argpath{
+          vertex=Vertex, 
+          previous=PreviousVertex,
+          direction=Direction}
+      ] ++ ArgPaths;
+    ArgPath ->
+      [
+        ArgPath#argpath{
+          previous = PreviousVertex,
+          direction = Direction}
+      ] ++ remove_argumenting_path(Vertex, ArgPaths)
+  end .
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Vertex Queue functions
@@ -724,7 +738,6 @@ process_argpath_test() ->
     "process_argpath_test case 001 - all forward: ~w",
     Expect001,
     Result001),
-  %TODO backward id unknown case 
   Edges002 = [
     #edge{from=source, to=v1, flow=10, cost=0, capacity=80},
     #edge{from=v1, to=sink, flow=20, cost=0, capacity=100}],
@@ -732,8 +745,8 @@ process_argpath_test() ->
     #argpath{vertex=sink, previous=v1, direction=backward},
     #argpath{vertex=v1, previous=source, direction=backward}],
   Expect002 = [
-    #edge{from=source, to=v1, flow=10, cost=0, capacity=80},
-    #edge{from=v1, to=sink, flow=20, cost=0, capacity=100}],
+    #edge{from=source, to=v1, flow=0, cost=0, capacity=80},
+    #edge{from=v1, to=sink, flow=10, cost=0, capacity=100}],
   Result002 = process_argpath(Edges002, ArgPaths002),
   show_process_argpath_test_result(
     "process_argpath_test case 002 - all backward: ~w",
