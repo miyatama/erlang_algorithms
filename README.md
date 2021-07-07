@@ -2291,3 +2291,327 @@ generate_argumenting_path_backward(
 ```
 
 </div></details>
+
+
+## Transhipment problem
+
+problem description
+
+supplyer
+
+```math
+Supplyer = S \\
+s_{i} \in S \\
+S = [s_{0}, ..., s_{m}] \\
+sup(s_{i}) = supply\ unit\ count
+```
+
+demand
+
+```math
+Demand = T \\
+t_{j} \in T \\
+T = [t_{0}, ..., t_{n}] \\
+dem(t_{j}) = demand\ unit\ count
+```
+
+warehouse
+
+```math
+Warehouse = W \\
+w_{k} \in W \\
+W = [w_{0}, ..., w_{w}] \\
+max(w_{k}) = acceptable\ unit\ count \\
+exchange(w_{k}) = exhange\ cost\ par\ unit
+```
+
+graph
+
+```math
+f(i, j) = flow\ unit\ count \\
+d(i, j) = source\ to\ sink\ shipment\ cost\ par\ unit\\
+ts(i, j) = transport\ cost\ par\ unit
+```
+
+constraint
+
++ warehouse netflow is 0
++ units are not lost 
++ units do not increase
++ \(sup(s_{i}) > 0\)
++ \(dem(t_{j}) > 0\)
++ \(d(i, ) > 0\)
++ \(ts(i, ) > 0\)
+
+purpose
+
+```text
+Find f () with the lowest overall cost
+```
+
+lowest overall cost
+
+```math
+Total\ Cost = Transport\ Cost + Exchange\ Cost\\
+Transport\ Cost = \sum_{i}\sum_{j}d(i, j)f(i, j)\\
+Exchange\ Cost = \sum_{i}\sum_{k}ts(i, k)f(i, k) + \\
+  \sum_{j}\sum_{k}ts(j, k)f(j, k) + \\
+  \sum_{k}\sum_{j}exhange(k)*f(j, k) + \\
+  \sum_{k}\sum_{i}exhange(k)*f(i, k)
+```
+
+transhipment problem convert to minimum cost problem.
+
+```math
+G = (V, E) \\
+V = [v_{0}, ..., v_{n + m + 2w + 2}]\\
+E = [e_{0}, ..., e_{(w+1)(m+n) + (nm) + w}]
+```
+
+vertex mapping
+
+```math
+s_{i} = v_{i}\\
+w_{k} = [v_{m + 2k - 1}, v_{m + 2k}]\\
+t_{j} = v_{1 + m + 2w + j}\\
+source = -1\\
+sink = v_{n + m + 2w + 1}
+```
+
+edge mapping
+
+| from | to | count | cost | capacity |
+| :----- | :----- | :----- | :----- | :----- |
+| source | supplyer | suppyer | 0 | \(sup(i)\) |
+| supplyer | demand | supplyer * demand | \(d(i, j)\) | infine |
+| supplyer | warehouse | supper * warehouse | \(ts(i, k)\) | \(sup(i)\) |
+| warehouse | warehouse | warehouse | \(exchange(k)\) | \(max(k)\) |
+| warehouse | demand | warehouse * demand | \(ts(k, j)\) | \(dem(j)\) |
+| demand | sink | demand | 0 | \(dem(j)\) |
+
+```mermaid
+graph LR;
+
+source((source))-->s0((s0))
+source-->s1((s1))
+source-->sn((sn))
+s0-->w0((w0))
+s0-->w1((w1))
+s0-->ww((ww))
+s1-->w0
+s1-->w1
+s1-->ww
+sn-->w0
+sn-->w1
+sn-->ww
+w0-->t0((t0))
+w0-->t1((t1))
+w0-->tm((tm))
+w1-->t0
+w1-->t1
+w1-->tm
+ww-->t0
+ww-->t1
+ww-->tm
+t0-->sink((sink))
+t1-->sink
+tm-->sink
+```
+
+[source code](./erlang_code/network_flow/transhipment.erl)
+
+<details><summary>logic</summary><div>
+
+```erlang
+generate_graph(TestCase) ->
+    Supplyers = generate_supplyers(TestCase),
+    Demands = generate_demands(TestCase),
+    Warehouses = generate_warehouses(TestCase),
+    generate_edges(Supplyers, Demands, Warehouses).
+
+-spec generate_supplyers(integer()) -> list(supplyer).
+generate_supplyers(1) ->
+    [
+        #supplyer{
+            no=1,
+            supply_unit_count=60, 
+            transport_cost_par_warehouse=[{1,114}],
+            costs_for_demand=[{1, 528}]}
+    ].
+
+-spec generate_demands(integer()) -> list(demand).
+generate_demands(1) ->
+    [
+        #demand{no=1, demand_unit_count=40}
+    ].
+
+-spec generate_warehouses(integer()) -> list(warehouse).
+generate_warehouses(1) ->
+    [
+        #warehouse{no=1, cost_par_unit=7, capacity=9999, costs_for_demand=[{1, 7}]}
+    ].
+
+-spec generate_edges(
+    list(supplyer),
+    list(demand),
+    list(warehouse)) -> list(edge).
+generate_edges(Supplyers, Demands, Warehouses) ->
+    generate_supplyer_edges(Supplyers, Demands, Warehouses)
+     ++ generate_warehouse_edges(Warehouses, Demands)
+     ++ generate_demands_edges(Demands).
+
+generate_supplyer_edges(Supplyers, Demands, Warehouses) ->
+    SourceEdges = generate_source_to_supplyer_edges(Supplyers),
+    AddWarehouseEdges = SourceEdges ++ 
+        generate_supplyer_to_warehouse_edges(Supplyers, Warehouses),
+    AddDemandEdges = AddWarehouseEdges ++
+        generate_supplyer_to_demand_edges(Supplyers, Demands),
+    AddDemandEdges.
+
+generate_source_to_supplyer_edges([]) -> [];
+generate_source_to_supplyer_edges(Supplyers) ->
+  [Supplyer | Retain]  = Supplyers,
+  [create_edge(
+      source,
+      generate_supplyer_vertex_name(Supplyer),
+      0,
+      Supplyer#supplyer.supply_unit_count)] ++
+    generate_source_to_supplyer_edges(Retain).
+
+generate_supplyer_to_warehouse_edges([], _) -> [];
+generate_supplyer_to_warehouse_edges(Supplyers, Warehouses) ->
+    [Supplyer | SupplyersRetain] = Supplyers,
+    generate_supplyer_to_warehouse_edges(Supplyers, Warehouses, Supplyer) ++
+      generate_supplyer_to_warehouse_edges(SupplyersRetain, Warehouses).
+generate_supplyer_to_warehouse_edges(_, [], _) -> [];
+generate_supplyer_to_warehouse_edges(Supplyers, Warehouses, Supplyer) ->
+    [Warehouse | WarehousesRetain] = Warehouses,
+    ?OUTPUT_DEBUG("generate_supplyer_to_warehouse_edges/3 - warehouse: ~w", [Warehouse]),
+    [create_edge(
+        generate_supplyer_vertex_name(Supplyer),
+        generate_warehouse_vertex_name(Warehouse),
+        get_supplyer_cost_for_warehouse(Supplyer, Warehouse),
+        Supplyer#supplyer.supply_unit_count)] ++
+    generate_supplyer_to_warehouse_edges(Supplyers, WarehousesRetain, Supplyer).
+
+generate_supplyer_to_demand_edges([], _) -> [];
+generate_supplyer_to_demand_edges(Supplyers, Demands) ->
+    [Supplyer | SupplyersRetain] = Supplyers,
+    generate_supplyer_to_demand_edges(Supplyers, Demands, Supplyer) ++
+      generate_supplyer_to_demand_edges(SupplyersRetain, Demands).
+generate_supplyer_to_demand_edges(_, [], _) -> [];
+generate_supplyer_to_demand_edges(Supplyers, Demands, Supplyer) ->
+    [Demand | DemandsRetain] = Demands,
+    [create_edge(
+        generate_supplyer_vertex_name(Supplyer),
+        generate_demand_vertex_name(Demand),
+        get_supplyer_cost_for_demand(Supplyer, Demand),
+        ?MAX_CAPACITY)] ++
+        generate_supplyer_to_demand_edges(Supplyers, DemandsRetain, Supplyer).
+
+generate_warehouse_edges([], _) -> [];
+generate_warehouse_edges(Warehouses, Demands) ->
+    [Warehouse | WarehousesRetain] = Warehouses,
+    ?OUTPUT_DEBUG("generate_warehouse_edges/2 - warehouse: ~w", [Warehouse]),
+    [create_edge(
+        generate_warehouse_vertex_name(Warehouse),
+        generate_warehouse_exchange_vertex_name(Warehouse),
+        Warehouse#warehouse.cost_par_unit, 
+        Warehouse#warehouse.capacity)] ++
+    generate_warehouse_edges(Warehouses, Demands, Warehouse) ++
+        generate_warehouse_edges(WarehousesRetain, Demands).
+
+generate_warehouse_edges(_, [], _) -> [];
+generate_warehouse_edges(Warehouses, Demands, Warehouse) ->
+    [Demand | DemandsRetain] = Demands,
+    [create_edge(
+        generate_warehouse_exchange_vertex_name(Warehouse),
+        generate_demand_vertex_name(Demand),
+        get_wharehouse_cost_for_demand(Warehouse, Demand),
+        Demand#demand.demand_unit_count)] ++
+        generate_warehouse_edges(Warehouses, DemandsRetain, Warehouse).
+
+generate_demands_edges([]) -> [];
+generate_demands_edges(Demands) ->
+    [Demand | DemandsRetain] = Demands,
+    [create_edge(
+        generate_demand_vertex_name(Demand), 
+        sink,
+        0,
+        Demand#demand.demand_unit_count)] ++
+    generate_demands_edges(DemandsRetain).
+
+generate_supplyer_vertex_name(Supplyer) ->
+    list_to_atom(
+          lists:flatten(io_lib:format("supplyer_~B", [Supplyer#supplyer.no]))).
+
+generate_warehouse_vertex_name(Warehouse) ->
+    list_to_atom(
+          lists:flatten(io_lib:format("warehouse_~B", [Warehouse#warehouse.no]))).
+
+generate_warehouse_exchange_vertex_name(Warehouse) ->
+    list_to_atom(
+          lists:flatten(io_lib:format("warehouse_exchange_~B", [Warehouse#warehouse.no]))).    
+
+generate_demand_vertex_name(Demand) ->
+    list_to_atom(
+          lists:flatten(io_lib:format("demand_~B", [Demand#demand.no]))).
+
+create_edge(FromVertex, ToVertex, Cost, Capacity) ->
+    #edge{
+        from=FromVertex,
+        to=ToVertex,
+        cost=Cost,
+        flow=0,
+        capacity=Capacity}.
+
+get_supplyer_cost_for_demand(Supplyer, Demand) ->
+    get_supplyer_cost_for_demand(
+        Supplyer, 
+        Supplyer#supplyer.costs_for_demand, 
+        Demand).
+get_supplyer_cost_for_demand(_, [], _) -> 0;
+get_supplyer_cost_for_demand(Supplyer, Costs, Demand) ->
+    [Cost | CostsRetain] = Costs,
+    DemandNo = Demand#demand.no,
+    case Cost of
+        {DemandNo, Value} ->
+            Value;
+        _ ->
+            get_supplyer_cost_for_demand(Supplyer, CostsRetain, Demand)
+    end.
+
+get_supplyer_cost_for_warehouse(Supplyer, Warehouse) ->
+    get_supplyer_cost_for_warehouse(
+        Supplyer, 
+        Supplyer#supplyer.transport_cost_par_warehouse, 
+        Warehouse).
+get_supplyer_cost_for_warehouse(_, [], _) -> 0;
+get_supplyer_cost_for_warehouse(Supplyer, Costs, Warehouse) ->
+    [Cost | CostsRetain] = Costs,
+    WarehouseNo = Warehouse#warehouse.no,
+    case Cost of
+        {WarehouseNo, Value} ->
+            Value;
+        _ ->
+            get_supplyer_cost_for_warehouse(Supplyer, CostsRetain, Warehouse)
+    end.
+
+get_wharehouse_cost_for_demand(Wharehouse, Demand) ->
+    get_wharehouse_cost_for_demand(
+        Wharehouse, 
+        Wharehouse#warehouse.costs_for_demand, 
+        Demand).
+get_wharehouse_cost_for_demand(_, [], _) -> 0;
+get_wharehouse_cost_for_demand(Wharehouse, Costs, Demand) ->
+    [Cost | CostsRetain] = Costs,
+    DemandNo = Demand#demand.no,
+    case Cost of
+        {DemandNo, Value} ->
+            Value;
+        _ ->
+            get_wharehouse_cost_for_demand(Wharehouse, CostsRetain, Demand)
+    end.
+```
+
+</div></details>
