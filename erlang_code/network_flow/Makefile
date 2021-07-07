@@ -11,7 +11,8 @@ ERL = erl -boot start_clean
 MODS = ford_fullkerson \
   ford_fullkerson_with_breadth_first \
   biporate_matching \
-  minimum_cost
+  minimum_cost \
+	transhipment
 
 all: compile
 
