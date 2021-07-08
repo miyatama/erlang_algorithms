@@ -1,4 +1,4 @@
--module(transhipment).
+-module(transport).
 
 -export([test/0]).
 
@@ -17,8 +17,6 @@
 
 -record(demand, {no, demand_unit_count}).
 
--record(warehouse, {no, cost_par_unit, capacity, costs_for_demand}).
-
 % 1: DEBUG
 % 2: INFO
 % 3: ERROR
@@ -26,40 +24,40 @@
 
 -define(OUTPUT_DEBUG(S),
   case (?LOG_LEVEL) =< 1 of
-    true -> io:fwrite("[DEBUG] transhipment: " ++ S ++ "~n");
+    true -> io:fwrite("[DEBUG] transport: " ++ S ++ "~n");
     _ -> ok
   end).
 
 -define(OUTPUT_DEBUG(S, Args),
   case (?LOG_LEVEL) =< 1 of
     true ->
-      io:fwrite("[DEBUG] transhipment: " ++ S ++ "~n", Args);
+      io:fwrite("[DEBUG] transport: " ++ S ++ "~n", Args);
     _ -> ok
   end).
 
 -define(OUTPUT_INFO(S),
   case (?LOG_LEVEL) =< 2 of
-    true -> io:fwrite("[INFO] transhipment: " ++ S ++ "~n");
+    true -> io:fwrite("[INFO] transport: " ++ S ++ "~n");
     _ -> ok
   end).
 
 -define(OUTPUT_INFO(S, Args),
   case (?LOG_LEVEL) =< 2 of
     true ->
-      io:fwrite("[INFO] transhipment: " ++ S ++ "~n", Args);
+      io:fwrite("[INFO] transport: " ++ S ++ "~n", Args);
     _ -> ok
   end).
 
 -define(OUTPUT_ERROR(S),
   case (?LOG_LEVEL) =< 3 of
-    true -> io:fwrite("[ERROR] transhipment: " ++ S ++ "~n");
+    true -> io:fwrite("[ERROR] transport: " ++ S ++ "~n");
     _ -> ok
   end).
 
 -define(OUTPUT_ERROR(S, Args),
   case (?LOG_LEVEL) =< 3 of
     true ->
-      io:fwrite("[ERROR] transhipment: " ++ S ++ "~n", Args);
+      io:fwrite("[ERROR] transport: " ++ S ++ "~n", Args);
     _ -> ok
   end).
 
@@ -101,26 +99,59 @@ compute(Graph, ArgPaths) ->
   NewGraph = process_argpath(Graph, ArgPaths),
   compute(NewGraph).
 
+-spec generate_graph(integer()) -> list(edge).
 generate_graph(TestCase) ->
     Supplyers = generate_supplyers(TestCase),
     Demands = generate_demands(TestCase),
-    Warehouses = generate_warehouses(TestCase),
-    generate_edges(Supplyers, Demands, Warehouses).
+    generate_edges(Supplyers, Demands).
+
+-spec generate_supplyers(integer()) -> list(supplyer).
+generate_supplyers(1) ->
+    [
+        #supplyer{
+            no=1,
+            supply_unit_count=60, 
+            costs_for_demand=[
+              {1, 500},
+              {2, 300},
+              {3, 250}]},
+        #supplyer{
+            no=2,
+            supply_unit_count=20, 
+            costs_for_demand=[
+              {1, 100},
+              {2, 200},
+              {3, 200}]},
+        #supplyer{
+            no=3,
+            supply_unit_count=60, 
+            costs_for_demand=[
+              {1, 300},
+              {2, 210},
+              {3, 230}]}
+    ].
+
+-spec generate_demands(integer()) -> list(demand).
+generate_demands(1) ->
+    [
+        #demand{no=1, demand_unit_count=100},
+        #demand{no=2, demand_unit_count=30},
+        #demand{no=3, demand_unit_count=10}
+    ].
 
 -spec generate_edges(
     list(supplyer),
-    list(demand),
-    list(warehouse)) -> list(edge).
-generate_edges(Supplyers, Demands, Warehouses) ->
-    generate_supplyer_edges(Supplyers, Demands, Warehouses)
-     ++ generate_warehouse_edges(Warehouses, Demands)
+    list(demand)) -> list(edge).
+generate_edges(Supplyers, Demands) ->
+    generate_supplyer_edges(Supplyers, Demands)
      ++ generate_demands_edges(Demands).
 
-generate_supplyer_edges(Supplyers, Demands, Warehouses) ->
+-spec generate_supplyer_edges(
+  list(suppliyer),
+  list(demand)) -> list(edge).
+generate_supplyer_edges(Supplyers, Demands) ->
     SourceEdges = generate_source_to_supplyer_edges(Supplyers),
-    AddWarehouseEdges = SourceEdges ++ 
-        generate_supplyer_to_warehouse_edges(Supplyers, Warehouses),
-    AddDemandEdges = AddWarehouseEdges ++
+    AddDemandEdges = SourceEdges ++
         generate_supplyer_to_demand_edges(Supplyers, Demands),
     AddDemandEdges.
 
@@ -133,22 +164,6 @@ generate_source_to_supplyer_edges(Supplyers) ->
       0,
       Supplyer#supplyer.supply_unit_count)] ++
     generate_source_to_supplyer_edges(Retain).
-
-generate_supplyer_to_warehouse_edges([], _) -> [];
-generate_supplyer_to_warehouse_edges(Supplyers, Warehouses) ->
-    [Supplyer | SupplyersRetain] = Supplyers,
-    generate_supplyer_to_warehouse_edges(Supplyers, Warehouses, Supplyer) ++
-      generate_supplyer_to_warehouse_edges(SupplyersRetain, Warehouses).
-generate_supplyer_to_warehouse_edges(_, [], _) -> [];
-generate_supplyer_to_warehouse_edges(Supplyers, Warehouses, Supplyer) ->
-    [Warehouse | WarehousesRetain] = Warehouses,
-    ?OUTPUT_DEBUG("generate_supplyer_to_warehouse_edges/3 - warehouse: ~w", [Warehouse]),
-    [create_edge(
-        generate_supplyer_vertex_name(Supplyer),
-        generate_warehouse_vertex_name(Warehouse),
-        get_supplyer_cost_for_warehouse(Supplyer, Warehouse),
-        Supplyer#supplyer.supply_unit_count)] ++
-    generate_supplyer_to_warehouse_edges(Supplyers, WarehousesRetain, Supplyer).
 
 generate_supplyer_to_demand_edges([], _) -> [];
 generate_supplyer_to_demand_edges(Supplyers, Demands) ->
@@ -165,28 +180,7 @@ generate_supplyer_to_demand_edges(Supplyers, Demands, Supplyer) ->
         ?MAX_CAPACITY)] ++
         generate_supplyer_to_demand_edges(Supplyers, DemandsRetain, Supplyer).
 
-generate_warehouse_edges([], _) -> [];
-generate_warehouse_edges(Warehouses, Demands) ->
-    [Warehouse | WarehousesRetain] = Warehouses,
-    ?OUTPUT_DEBUG("generate_warehouse_edges/2 - warehouse: ~w", [Warehouse]),
-    [create_edge(
-        generate_warehouse_vertex_name(Warehouse),
-        generate_warehouse_exchange_vertex_name(Warehouse),
-        Warehouse#warehouse.cost_par_unit, 
-        Warehouse#warehouse.capacity)] ++
-    generate_warehouse_edges(Warehouses, Demands, Warehouse) ++
-        generate_warehouse_edges(WarehousesRetain, Demands).
-
-generate_warehouse_edges(_, [], _) -> [];
-generate_warehouse_edges(Warehouses, Demands, Warehouse) ->
-    [Demand | DemandsRetain] = Demands,
-    [create_edge(
-        generate_warehouse_exchange_vertex_name(Warehouse),
-        generate_demand_vertex_name(Demand),
-        get_wharehouse_cost_for_demand(Warehouse, Demand),
-        Demand#demand.demand_unit_count)] ++
-        generate_warehouse_edges(Warehouses, DemandsRetain, Warehouse).
-
+-spec generate_demands_edges(list(demand)) -> list(edge).
 generate_demands_edges([]) -> [];
 generate_demands_edges(Demands) ->
     [Demand | DemandsRetain] = Demands,
@@ -200,14 +194,6 @@ generate_demands_edges(Demands) ->
 generate_supplyer_vertex_name(Supplyer) ->
     list_to_atom(
           lists:flatten(io_lib:format("supplyer_~B", [Supplyer#supplyer.no]))).
-
-generate_warehouse_vertex_name(Warehouse) ->
-    list_to_atom(
-          lists:flatten(io_lib:format("warehouse_~B", [Warehouse#warehouse.no]))).
-
-generate_warehouse_exchange_vertex_name(Warehouse) ->
-    list_to_atom(
-          lists:flatten(io_lib:format("warehouse_exchange_~B", [Warehouse#warehouse.no]))).    
 
 generate_demand_vertex_name(Demand) ->
     list_to_atom(
@@ -235,38 +221,6 @@ get_supplyer_cost_for_demand(Supplyer, Costs, Demand) ->
             Value;
         _ ->
             get_supplyer_cost_for_demand(Supplyer, CostsRetain, Demand)
-    end.
-
-get_supplyer_cost_for_warehouse(Supplyer, Warehouse) ->
-    get_supplyer_cost_for_warehouse(
-        Supplyer, 
-        Supplyer#supplyer.transport_cost_par_warehouse, 
-        Warehouse).
-get_supplyer_cost_for_warehouse(_, [], _) -> 0;
-get_supplyer_cost_for_warehouse(Supplyer, Costs, Warehouse) ->
-    [Cost | CostsRetain] = Costs,
-    WarehouseNo = Warehouse#warehouse.no,
-    case Cost of
-        {WarehouseNo, Value} ->
-            Value;
-        _ ->
-            get_supplyer_cost_for_warehouse(Supplyer, CostsRetain, Warehouse)
-    end.
-
-get_wharehouse_cost_for_demand(Wharehouse, Demand) ->
-    get_wharehouse_cost_for_demand(
-        Wharehouse, 
-        Wharehouse#warehouse.costs_for_demand, 
-        Demand).
-get_wharehouse_cost_for_demand(_, [], _) -> 0;
-get_wharehouse_cost_for_demand(Wharehouse, Costs, Demand) ->
-    [Cost | CostsRetain] = Costs,
-    DemandNo = Demand#demand.no,
-    case Cost of
-        {DemandNo, Value} ->
-            Value;
-        _ ->
-            get_wharehouse_cost_for_demand(Wharehouse, CostsRetain, Demand)
     end.
 
 show_result(Text, CaseNo ,Expect, Result) ->
@@ -312,35 +266,22 @@ show_edge(Debug, Edge) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Test functions
--spec generate_supplyers(integer()) -> list(supplyer).
-generate_supplyers(1) ->
-    [
-        #supplyer{
-            no=1,
-            supply_unit_count=60, 
-            transport_cost_par_warehouse=[{1,114}],
-            costs_for_demand=[{1, 528}]}
-    ].
-
--spec generate_demands(integer()) -> list(demand).
-generate_demands(1) ->
-    [
-        #demand{no=1, demand_unit_count=40}
-    ].
-
--spec generate_warehouses(integer()) -> list(warehouse).
-generate_warehouses(1) ->
-    [
-        #warehouse{no=1, cost_par_unit=7, capacity=9999, costs_for_demand=[{1, 7}]}
-    ].
-
 generate_expect_graph(1) -> [
-    #edge{from=source, to=supplyer_1, flow=40, capacity=60, cost=0},
-    #edge{from=supplyer_1, to=warehouse_1, flow=40, capacity=60, cost=114},
-    #edge{from=warehouse_1, to=warehouse_exchange_1, flow=40, capacity=9999, cost=7},
-    #edge{from=warehouse_exchange_1, to=demand_1, flow=40, capacity=40, cost=7},
-    #edge{from=demand_1, to=sink, flow=40, capacity=40, cost=0},
-    #edge{from=supplyer_1, to=demand_1, flow=0, capacity=9999, cost=528}
+    #edge{from=source, to=supplyer_1, flow=60, capacity=60, cost=0},
+    #edge{from=source, to=supplyer_2, flow=20, capacity=20, cost=0},
+    #edge{from=source, to=supplyer_3, flow=60, capacity=60, cost=0},
+    #edge{from=supplyer_1, to=demand_1, flow=20, capacity=9999, cost=500},
+    #edge{from=supplyer_1, to=demand_2, flow=30, capacity=9999, cost=300},
+    #edge{from=supplyer_1, to=demand_3, flow=10, capacity=9999, cost=250},
+    #edge{from=supplyer_2, to=demand_1, flow=20, capacity=9999, cost=100},
+    #edge{from=supplyer_2, to=demand_2, flow=0, capacity=9999, cost=200},
+    #edge{from=supplyer_2, to=demand_3, flow=0, capacity=9999, cost=200},
+    #edge{from=supplyer_3, to=demand_1, flow=60, capacity=9999, cost=300},
+    #edge{from=supplyer_3, to=demand_2, flow=0, capacity=9999, cost=210},
+    #edge{from=supplyer_3, to=demand_3, flow=0, capacity=9999, cost=230},
+    #edge{from=demand_1, to=sink, flow=100, capacity=100, cost=0},
+    #edge{from=demand_2, to=sink, flow=30, capacity=30, cost=0},
+    #edge{from=demand_3, to=sink, flow=10, capacity=10, cost=0}
   ];
 
 generate_expect_graph(_) -> [].
@@ -351,27 +292,15 @@ generate_edges_test() ->
         #supplyer{
             no=1,
             supply_unit_count = 10,
-            transport_cost_par_warehouse=[
-                {1, 20}],
             costs_for_demand=[
                 {1, 11}]}],
-    Warehouses001 = [
-        #warehouse{
-            no=1,
-            cost_par_unit=4,
-            capacity=100,
-            costs_for_demand=[
-                {1, 7}]}],
     Demands001 = [
         #demand{no=1, demand_unit_count=1000}],
-    Edges001 = generate_edges(Supplyers001, Demands001, Warehouses001),
+    Edges001 = generate_edges(Supplyers001, Demands001),
     Expect001 = [
         #edge{from=source, to=supplyer_1, flow=0, cost=0, capacity=10},
         #edge{from=supplyer_1, to=demand_1, flow=0, cost=11, capacity=?MAX_CAPACITY},
-        #edge{from=demand_1, to=sink, flow=0, cost=0, capacity=1000},
-        #edge{from=supplyer_1, to=warehouse_1, flow=0, cost=20, capacity=10},
-        #edge{from=warehouse_exchange_1, to=demand_1, flow=0, cost=7, capacity=1000},
-        #edge{from=warehouse_1, to=warehouse_exchange_1, flow=0, cost=4, capacity=100}],
+        #edge{from=demand_1, to=sink, flow=0, cost=0, capacity=1000}],
     show_generate_edges_test(
         "case001 - supplyer, warehouse, demand. 1:1:1. : ~w", 
         Expect001,
@@ -381,37 +310,22 @@ generate_edges_test() ->
         #supplyer{
             no=1,
             supply_unit_count = 10,
-            transport_cost_par_warehouse=[
-                {1, 20}],
             costs_for_demand=[
                 {1, 11}]},
         #supplyer{
             no=2,
             supply_unit_count = 15,
-            transport_cost_par_warehouse=[
-                {1, 25}],
             costs_for_demand=[
                 {1, 15}]}],
-    Warehouses002 = [
-        #warehouse{
-            no=1,
-            cost_par_unit=4,
-            capacity=100,
-            costs_for_demand=[
-                {1, 7}]}],
     Demands002 = [
         #demand{no=1, demand_unit_count=1000}],
-    Edges002 = generate_edges(Supplyers002, Demands002, Warehouses002),
+    Edges002 = generate_edges(Supplyers002, Demands002),
     Expect002 = [
         #edge{from=source, to=supplyer_1, flow=0, cost=0, capacity=10},
         #edge{from=source, to=supplyer_2, flow=0, cost=0, capacity=15},
         #edge{from=supplyer_1, to=demand_1, flow=0, cost=11, capacity=?MAX_CAPACITY},
         #edge{from=supplyer_2, to=demand_1, flow=0, cost=15, capacity=?MAX_CAPACITY},
-        #edge{from=demand_1, to=sink, flow=0, cost=0, capacity=1000},
-        #edge{from=supplyer_1, to=warehouse_1, flow=0, cost=20, capacity=10},
-        #edge{from=supplyer_2, to=warehouse_1, flow=0, cost=25, capacity=15},
-        #edge{from=warehouse_exchange_1, to=demand_1, flow=0, cost=7, capacity=1000},
-        #edge{from=warehouse_1, to=warehouse_exchange_1, flow=0, cost=4, capacity=100}],
+        #edge{from=demand_1, to=sink, flow=0, cost=0, capacity=1000}],
     show_generate_edges_test(
         "case002 - supplyer, warehouse, demand. 2:1:1. : ~w", 
         Expect002,

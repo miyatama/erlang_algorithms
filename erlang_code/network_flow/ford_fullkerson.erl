@@ -117,9 +117,13 @@ compute(Graph, ArgPaths) ->
 calculate_delta(_, _, source, Delta) -> Delta;
 calculate_delta(Edges, ArgPaths, Vertex, Delta) ->
   ArgPath = find_argumenting_path(Vertex, ArgPaths),
+  {CurrentVertex, NextVertex} = case ArgPath#argpath.direction of
+    forward -> {ArgPath#argpath.previous, ArgPath#argpath.vertex};
+    backward -> {ArgPath#argpath.vertex, ArgPath#argpath.previous}
+  end,
   Edge = find_edge(
-        ArgPath#argpath.previous,
-        ArgPath#argpath.vertex,
+        CurrentVertex,
+        NextVertex,
         Edges),
   TryDelta = case {Edge, ArgPath#argpath.direction} of
     {null, _} ->
@@ -155,8 +159,8 @@ reflect_delta(Edges, ArgPaths, Delta, Vertex) ->
     backward ->
       NewEdge = sub_flow(
         Edges, 
-        ArgPath#argpath.previous,
         Vertex,
+        ArgPath#argpath.previous,
         Delta),
       {NewEdge, ArgPath#argpath.previous}
   end,

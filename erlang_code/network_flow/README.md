@@ -1016,3 +1016,42 @@ get_wharehouse_cost_for_demand(Wharehouse, Costs, Demand) ->
 ```
 
 </div></details>
+
+## transport problem
+
+```text
+transport problem = transhipment problem - warehouse
+```
+
+<details><summary>generate edge logic</summary><div>
+
+```erlang
+-spec generate_edges(
+    list(supplyer),
+    list(demand)) -> list(edge).
+generate_edges(Supplyers, Demands) ->
+    generate_supplyer_edges(Supplyers, Demands)
+     ++ generate_demands_edges(Demands).
+
+-spec generate_supplyer_edges(
+  list(suppliyer),
+  list(demand)) -> list(edge).
+generate_supplyer_edges(Supplyers, Demands) ->
+    SourceEdges = generate_source_to_supplyer_edges(Supplyers),
+    AddDemandEdges = SourceEdges ++
+        generate_supplyer_to_demand_edges(Supplyers, Demands),
+    AddDemandEdges.
+
+-spec generate_demands_edges(list(demand)) -> list(edge).
+generate_demands_edges([]) -> [];
+generate_demands_edges(Demands) ->
+    [Demand | DemandsRetain] = Demands,
+    [create_edge(
+        generate_demand_vertex_name(Demand), 
+        sink,
+        0,
+        Demand#demand.demand_unit_count)] ++
+    generate_demands_edges(DemandsRetain).
+```
+
+</div></details>
