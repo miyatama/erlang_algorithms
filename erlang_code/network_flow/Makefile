@@ -14,7 +14,8 @@ MODS = ford_fullkerson \
 	augmenting_path \
 	minimum_cost \
 	transhipment \
-	transport
+	transport \
+	allocation
 
 all: compile
 

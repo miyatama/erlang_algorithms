@@ -1055,3 +1055,36 @@ generate_demands_edges(Demands) ->
 ```
 
 </div></details>
+
+## allocation problem
+
+```text
+allocation problem = capacity_to_1(transport problem)
+```
+
+<details><summary>convert logic</summary><div>
+
+```erlang
+generate_source_to_supplyer_edges([]) -> [];
+generate_source_to_supplyer_edges(Supplyers) ->
+  [Supplyer | Retain]  = Supplyers,
+  [create_edge(
+      source,
+      generate_supplyer_vertex_name(Supplyer),
+      0,
+      1)] ++
+    generate_source_to_supplyer_edges(Retain).
+
+-spec generate_demands_edges(list(demand)) -> list(edge).
+generate_demands_edges([]) -> [];
+generate_demands_edges(Demands) ->
+    [Demand | DemandsRetain] = Demands,
+    [create_edge(
+        generate_demand_vertex_name(Demand), 
+        sink,
+        0,
+        1)] ++
+    generate_demands_edges(DemandsRetain).
+```
+
+</div></details>
