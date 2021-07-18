@@ -7,3 +7,4 @@ see [ALGORITHMS IN A NUTSHELL Second Edition](https://www.oreilly.com/library/vi
 + [graph](./erlang_code/graph/README.md)
 + [route search](./erlang_code/route_search/README.md)
 + [network flow](./erlang_code/network_flow/README.md)
++ [computational geometry](./erlang_code/computational_geometry/README.md)
