@@ -9,7 +9,8 @@
 ERL = erl -boot start_clean
 
 MODS = utility \
-	convex_hull_scan
+	convex_hull_scan \
+	line_sweep
 
 all: compile
 
